@@ -32,9 +32,9 @@
 *.app
 
 .vscode/
-.vs
-Debug
-.sln
-.vcxproj.filters
-.vcxproj.user
-.vcxproj
+.vs/
+Debug/
+*.sln
+*.vcxproj.filters
+*.vcxproj.user
+*.vcxproj
