@@ -54,8 +54,11 @@ public:
 			stringstream line(s);
 			while (line >> s) {
 				outfile << s;
-				input.push_back(s);
-				outfile << ' ';
+				if (s != ",") {
+					input.push_back(s);
+					outfile << ' ';
+				}
+			
 			}
 			outfile << endl; // put input in a new file after removing all extra spaces;
 			//------------------------------------------------------------------------------------
