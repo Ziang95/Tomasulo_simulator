@@ -1,7 +1,0 @@
-﻿  tumasulu.cpp
-C:\Users\Speci\Desktop\project1\tumasulu\Import.h(177,23): warning C4018: '<': signed/unsigned mismatch
-C:\Users\Speci\Desktop\project1\tumasulu\Import.h(205,23): warning C4018: '<': signed/unsigned mismatch
-C:\Users\Speci\Desktop\project1\tumasulu\Import.h(233,21): warning C4018: '<': signed/unsigned mismatch
-C:\Users\Speci\Desktop\project1\tumasulu\Import.h(235,21): warning C4018: '<': signed/unsigned mismatch
-C:\Users\Speci\Desktop\project1\tumasulu\Import.h(237,21): warning C4018: '<': signed/unsigned mismatch
-  tumasulu.vcxproj -> C:\Users\Speci\Desktop\project1\tumasulu\Debug\tumasulu.exe
