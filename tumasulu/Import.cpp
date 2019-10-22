@@ -27,14 +27,19 @@ void Import::ReadInput()
 		exit(1); // call system to stop
 	}
 
-	while (getline(infile, s)) {
-		stringstream line(s);
-		while (line >> s) {
-			outfile << s;
-			if (s != ",") {
-				input.push_back(s);
-				outfile << ' ';
+	L1:while (getline(infile, s)) {
+		if (!s.empty()) {
+			stringstream line(s);
+			while (line >> s) {
+				outfile << s;
+				if (s != ",") {
+					input.push_back(s);
+					outfile << ' ';
+				}
 			}
+		}
+		else {
+			goto L1;
 		}
 		outfile << endl; // put input in a new file after removing all extra spaces
 		//------------------------------------------------------------------------------------
