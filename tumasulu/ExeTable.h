@@ -4,7 +4,7 @@ using namespace std;
 class ExeTable // Structure definition for the execution table.
 {
 public:
-    string Instruction;
+    string Instruction; // holds instruction string
     int Issue;
     int Exec;
     int Mem;
