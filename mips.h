@@ -5,6 +5,10 @@
 #include <iostream>
 #include <string>
 #include <windows.h>
+
+typedef pthread_cond_t cond_t;
+typedef pthread_mutex_t mutex_t;
+
 #include "memory.h"
 
 #define DEBUG_LEVEL 1
@@ -31,11 +35,7 @@
 
 #define R0 0
 
-
 using namespace std;
-
-typedef pthread_cond_t cond_t;
-typedef pthread_mutex_t mutex_t;
 
 class clk_tick
 {
@@ -49,9 +49,9 @@ class clk_tick
         bool oscillator(int freq); //This function oscillates [clk], at a frequency of [freq]
 };
 
-void msg_log(string msg, int lvl); //When DEBUG_LEVEL >= lvl, general message will be displayed
-void err_log(string err); //Err message will always be displayed
-void at_rising_edge(mutex_t *lock); //Block the thread until [sys_clk] ticks to 1
-void at_falling_edge(mutex_t *lock); //Block the thread until [sys_clk] ticks to 0
+void msg_log(string msg, int lvl);      //When DEBUG_LEVEL >= lvl, general message will be displayed
+void err_log(string err);               //Err message will always be displayed
+void at_rising_edge(mutex_t *lock);     //Block the thread until [sys_clk] ticks to 1
+void at_falling_edge(mutex_t *lock);    //Block the thread until [sys_clk] ticks to 0
 
 #endif
