@@ -8,9 +8,9 @@ extern memory main_mem;
 memory::memory(int sz)
 {
     buf = new memCell[sz];
-    bufStat = IDLE;
     size = sz;
     front = rear = 0;
+    CDB.addr = -1;
     for (auto c: LSQ)
     {
         c.token = PTHREAD_COND_INITIALIZER;
@@ -20,11 +20,6 @@ memory::memory(int sz)
 memory::~memory()
 {
     delete []buf;
-}
-
-int memory::get_buf_stat(int addr)
-{
-    return bufStat;
 }
 
 bool memory::store(QEntry& entry) //This function is designed with "being called at rising edge" in mind
@@ -38,15 +33,15 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
             break;
         at_rising_edge(&clk);
     }
-    if (entry.fp)
+    if (entry.type == FLTP)
         buf[entry.addr].f = *((float*)(entry.val));
     else
         buf[entry.addr].i = *((int*)(entry.val));
-    CDB.fp = entry.fp;
+    CDB.type = entry.type;
     CDB.addr = entry.addr;
     CDB.val = buf[entry.addr];
     entry.done = true;
-    msg_log("Value stored, Val="+to_string(entry.fp?(*(float*)entry.val):(*(int*)entry.val)), 3);
+    msg_log("Value stored, Val="+to_string(entry.type == FLTP?(*(float*)entry.val):(*(int*)entry.val)), 2);
     pthread_cond_broadcast(&(entry.token));
     return true;
 }
@@ -58,7 +53,7 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
     {
         msg_log("Forward store found, forwarding, Addr="+to_string(CDB.addr), 3);
         at_falling_edge(&clk);
-        if (entry.fp)
+        if (entry.type == FLTP)
             *((float*)(entry.val)) = CDB.val.f;
         else
             *((int*)(entry.val)) = CDB.val.i;
@@ -73,26 +68,26 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
                 break;
             at_rising_edge(&clk);
         }
-        if (entry.fp)
-            *((float*)(entry.val)) = buf[entry.addr].f;
+        if (entry.type == FLTP)
+            *((float*)entry.val) = buf[entry.addr].f;
         else
-            *((int*)(entry.val)) = buf[entry.addr].i;
+            *((int*)entry.val) = buf[entry.addr].i;
     }
     entry.done = true;
-    msg_log("Value loaded, Val="+to_string(entry.fp?(*(float*)entry.val):(*(int*)entry.val)), 2);
+    msg_log("Value loaded, Val="+to_string(entry.type == FLTP?(*(float*)entry.val):(*(int*)entry.val)), 2);
     pthread_cond_broadcast(&entry.token);
     return true;
 }
 
- QEntry* memory::enQ(bool store, bool fp, int addr, void* val)
+ QEntry* memory::enQ(memOpCode code, valType type, int addr, void* val)
 {
-    if (addr >= size)
+    if (addr >= size || addr<0)
         throw -1;
     int index = rear;
     rear = (++rear)%512;
     LSQ[index].addr = addr;
-    LSQ[index].store = store;
-    LSQ[index].fp = fp;
+    LSQ[index].code = code;
+    LSQ[index].type = type;
     LSQ[index].val = val;
     LSQ[index].done = false;
     return LSQ+index;
@@ -106,7 +101,7 @@ void memory::mem_automat()
         at_rising_edge(&clk);
         if (front != rear)
         {
-            if (LSQ[front].store)
+            if (LSQ[front].code == STORE)
                 store(LSQ[front]);
             else
                 load(LSQ[front]);
@@ -117,7 +112,7 @@ void memory::mem_automat()
     }
 }
 
-bool init_main_mem()
+void init_main_mem()
 {
-    pthread_create(&main_mem.handle, NULL, [](void *arg)->void*{main_mem.mem_automat();}, NULL);
+    pthread_create(&main_mem.handle, NULL, [](void *arg)->void*{main_mem.mem_automat();return NULL;}, NULL);
 }

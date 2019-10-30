@@ -106,9 +106,9 @@ int main()
     sys_clk.start_prog();
     int i = 110, li;
     float f = 10.1, lf;
-    main_mem.enQ(true, false, 1, &i);
-    main_mem.enQ(true, true, 2, &f);
-    main_mem.enQ(false, false, 1, &li);
-    main_mem.enQ(false, true, 2, &lf);
+    main_mem.enQ(STORE, INTGR, 1, &i);
+    main_mem.enQ(STORE, FLTP, 2, &f);
+    main_mem.enQ(LOAD, INTGR, 1, &li);
+    main_mem.enQ(LOAD, FLTP, 2, &lf);
     cin.get();
 }
