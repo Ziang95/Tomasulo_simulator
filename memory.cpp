@@ -2,101 +2,122 @@
 
 using namespace std;
 
-extern int pro_cyc;
 extern clk_tick sys_clk;
+extern memory main_mem;
 
-memory_8::memory_8(int sz)
+memory::memory(int sz)
 {
-    buf = new int8_t[sz];
-    bufStat = new int[sz];
-    bufBC = new cond_t[sz];
-    bufStatMutex = new mutex_t[sz];
+    buf = new memCell[sz];
+    bufStat = IDLE;
     size = sz;
-
-    memset(bufStat, 0, size*sizeof(int));
-    for (int i = 0; i<size; i++)
-        bufBC[i] = PTHREAD_COND_INITIALIZER;
-    for (int i = 0; i<size; i++)
-        bufStatMutex[i] = PTHREAD_MUTEX_INITIALIZER;
+    front = rear = 0;
+    for (auto c: LSQ)
+    {
+        c.token = PTHREAD_COND_INITIALIZER;
+    }
 }
 
-memory_8::~memory_8()
+memory::~memory()
 {
     delete []buf;
-    delete []bufStat;
-    delete []bufBC;
-    delete []bufStatMutex;
 }
 
-int memory_8::get_buf_stat(int addr)
+int memory::get_buf_stat(int addr)
 {
-    return bufStat[addr];
+    return bufStat;
 }
 
-bool memory_8::store(int8_t value, int addr) //This function is designed with "being called at falling edge" in mind
+bool memory::store(QEntry& entry) //This function is designed with "being called at rising edge" in mind
 {
-    if (addr >= size)
-    {
-        err_log("Store failed, Memory access out of range");
-        return false;
-    }
-    if (buf[addr] < 0)
-    {
-        err_log("Store failed, value is being stored at ADDR="+to_string(addr));
-        return false;
-    }
-    bufStat[addr] = -LD_STR_MEM_TIME;
     mutex_t clk = PTHREAD_MUTEX_INITIALIZER;
-    for (int i = 0; i<LD_STR_MEM_TIME; i++)
+    for (int i = 0; ; i++)
     {
-        at_rising_edge(&clk);
-        bufStat[addr]++;
+        msg_log("Storing value to Addr="+to_string(entry.addr), 3);
         at_falling_edge(&clk);
+        if (i == LD_STR_MEM_TIME - 1)
+            break;
+        at_rising_edge(&clk);
     }
-    pthread_cond_broadcast(&bufBC[addr]);
-    buf[addr] = value;
+    if (entry.fp)
+        buf[entry.addr].f = *((float*)(entry.val));
+    else
+        buf[entry.addr].i = *((int*)(entry.val));
+    CDB.fp = entry.fp;
+    CDB.addr = entry.addr;
+    CDB.val = buf[entry.addr];
+    entry.done = true;
+    msg_log("Value stored, Val="+to_string(entry.fp?(*(float*)entry.val):(*(int*)entry.val)), 3);
+    pthread_cond_broadcast(&(entry.token));
     return true;
 }
 
-bool memory_8::load(int8_t &ret, int addr) //This function is designed with "being called at falling edge" in mind
+bool memory::load(QEntry& entry) //This function is designed with "being called at rising edge" in mind
 {
-    if (addr >= size)
-    {
-        err_log("Load failed, Memory access out of range");
-        return false;
-    }
-    if (buf[addr] < 0) //Forward value from preceding STORE
-    {
-        mutex_t waitStore = PTHREAD_MUTEX_INITIALIZER;
-        pthread_mutex_lock(&waitStore);
-        while(buf[addr]<0)
-            pthread_cond_wait(&bufBC[addr], &waitStore);
-        pthread_mutex_unlock(&waitStore);
-        ret = buf[addr];
-        return true;
-    }
     mutex_t clk = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&bufStatMutex[addr]);
-    bufStat[addr] = LD_STR_MEM_TIME; //No matter how many LOAD happens in parallel, the rest cycle will always be determined by the last LOAD
-    pthread_mutex_unlock(&bufStatMutex[addr]);
-    for (int i = 0; i<LD_STR_MEM_TIME; i++)
+    if (CDB.addr == entry.addr)
     {
-        at_rising_edge(&clk);
-        msg_log("Loading value from ADDr="+to_string(addr), 3);
+        msg_log("Forward store found, forwarding, Addr="+to_string(CDB.addr), 3);
         at_falling_edge(&clk);
+        if (entry.fp)
+            *((float*)(entry.val)) = CDB.val.f;
+        else
+            *((int*)(entry.val)) = CDB.val.i;
     }
-    ret = buf[addr];
+    else
+    {
+        for (int i = 0; ; i++)
+        {
+            msg_log("Loading value from Addr="+to_string(entry.addr), 3);
+            at_falling_edge(&clk);
+            if (i == LD_STR_MEM_TIME - 1)
+                break;
+            at_rising_edge(&clk);
+        }
+        if (entry.fp)
+            *((float*)(entry.val)) = buf[entry.addr].f;
+        else
+            *((int*)(entry.val)) = buf[entry.addr].i;
+    }
+    entry.done = true;
+    msg_log("Value loaded, Val="+to_string(entry.fp?(*(float*)entry.val):(*(int*)entry.val)), 2);
+    pthread_cond_broadcast(&entry.token);
     return true;
 }
 
-void memory_8::load_cyc_decre(){
+ QEntry* memory::enQ(bool store, bool fp, int addr, void* val)
+{
+    if (addr >= size)
+        throw -1;
+    int index = rear;
+    rear = (++rear)%512;
+    LSQ[index].addr = addr;
+    LSQ[index].store = store;
+    LSQ[index].fp = fp;
+    LSQ[index].val = val;
+    LSQ[index].done = false;
+    return LSQ+index;
+}
+
+void memory::mem_automat()
+{
     mutex_t clk = PTHREAD_MUTEX_INITIALIZER;
     while (true)
     {
         at_rising_edge(&clk);
-        for (int i = 0; i<size; i++)
-            if (bufStat[i] > 0)
-                bufStat[i]--;
-        at_falling_edge(&clk);
+        if (front != rear)
+        {
+            if (LSQ[front].store)
+                store(LSQ[front]);
+            else
+                load(LSQ[front]);
+            front = (++front)%512;
+        }
+        else
+            at_falling_edge(&clk);
     }
+}
+
+bool init_main_mem()
+{
+    pthread_create(&main_mem.handle, NULL, [](void *arg)->void*{main_mem.mem_automat();}, NULL);
 }

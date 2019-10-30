@@ -2,26 +2,50 @@
 #define MEMORY_H
 
 #include <stdint.h>
+
+typedef void * (*threadFunc)(void *);
+
 #include "mips.h"
 
-class memory_8 
-/*This class define the behaviour of memory unit in MEM stage, 
-(everything happens after the falling edge of the last EXE stage cycle)
-*/
+typedef enum states {LOAD, STORE, IDLE} states;
+typedef union memCell{
+    int i;
+    float f;
+}memCell;
+typedef struct QEntry{
+    bool done;
+    bool store;
+    bool fp;
+    void* val;
+    int addr;
+    cond_t token;
+}QEntry;
+
+class memory
 {
     private:
-        int8_t *buf; //Stores values
-        int *bufStat; //State of each buf entry, positive val stands for the rest LOAD cycle, negative val stands for rest STORE cycle
-        mutex_t *bufStatMutex; //Prevent race condition between threads
+        memCell *buf; //Stores values
         int size = 0; //Size of [buf]
+        states bufStat;
+        struct dataBus{
+            bool fp;
+            memCell val;
+            int addr;
+        }CDB;
+        struct QEntry LSQ[512];
+        int front, rear;
+
+        bool store(struct QEntry& entry);
+        bool load(struct QEntry& entry);
     public:
-        cond_t *bufBC; //Used by [buf] to broadcast its value when finishing STORE
-        memory_8(int sz); //Constructor
-        ~memory_8(); //Destructor
+        pthread_t handle;
+        memory(int sz); //Constructor
+        ~memory();      //Destructor 
         int get_buf_stat(int addr);
-        bool store(int8_t value, int addr); //Store value in memory, note that this function can only be called AT FALLING EDGE!
-        bool load(int8_t &ret, int addr); //Load value from memory, note that this function can only be called AT FALLING EDGE!
-        void load_cyc_decre();
+        QEntry* enQ(bool store, bool fp, int addr, void* val); //Should be called at falling edge
+        void mem_automat();
 };
+
+bool init_main_mem();
 
 #endif

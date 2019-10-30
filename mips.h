@@ -9,9 +9,7 @@
 typedef pthread_cond_t cond_t;
 typedef pthread_mutex_t mutex_t;
 
-#include "memory.h"
-
-#define DEBUG_LEVEL 1
+#define DEBUG_LEVEL 3
 #define INT_REG_NUM 32
 #define FP_REG_NUM 32
 #define ROB_LEN 128
@@ -35,17 +33,25 @@ typedef pthread_mutex_t mutex_t;
 
 #define R0 0
 
+#include "memory.h"
+
 using namespace std;
 
 class clk_tick
 {
     private:
         bool vdd;
+        bool prog_started;
+        int prog_cyc;
     public:
+        pthread_t handle;
         cond_t vdd_1; //Magic is here, pthread condition variable can make each thread be synced passively
         cond_t vdd_0; //Condition variable does not occupy system cycle while waiting
+        cond_t start;
         clk_tick();
         bool get_vdd();
+        void start_prog();
+        int get_prog_cyc();
         bool oscillator(int freq); //This function oscillates [clk], at a frequency of [freq]
 };
 

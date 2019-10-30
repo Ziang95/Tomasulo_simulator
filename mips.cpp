@@ -2,9 +2,8 @@
 
 using namespace std;
 
-int pro_cyc; // The current cycle of program
 clk_tick sys_clk = clk_tick(); //System clock
-memory_8 main_mem = memory_8(MEM_LEN); //Main memory 
+memory main_mem = memory(MEM_LEN); //Main memory 
 mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
 mutex_t cerr_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -12,12 +11,28 @@ clk_tick::clk_tick()
 {
     vdd_0 = vdd_1 = PTHREAD_COND_INITIALIZER;
     vdd = 0;
+    prog_started = false;
+    prog_cyc = 0;
 }
 
 bool clk_tick::get_vdd()
 {
     return vdd;
 }
+
+int clk_tick::get_prog_cyc()
+{
+    return prog_cyc;
+}
+
+void clk_tick::start_prog()
+{
+    mutex_t clk = PTHREAD_MUTEX_INITIALIZER;
+    at_falling_edge(&clk);
+    pthread_cond_broadcast(&start);
+    prog_started = true;
+}
+
 bool clk_tick::oscillator(int freq)
 {
     if (freq > 500)
@@ -27,6 +42,8 @@ bool clk_tick::oscillator(int freq)
     }
     while (true)
     {
+        if (prog_started)
+            prog_cyc++;
         vdd = 1;
         pthread_cond_broadcast(&vdd_1);
         Sleep(500/freq);
@@ -40,14 +57,14 @@ void msg_log(string msg, int lvl)
 {
     pthread_mutex_lock(&cout_lock);
     if (DEBUG_LEVEL>=lvl)
-        cout<<'['<<__FILE__<<"-"<<__LINE__<<": pro_cyc="<<pro_cyc<<", vdd="<<sys_clk.get_vdd()<<']'<<msg<<endl;
+        cout<<"[Pro_cyc="<<sys_clk.get_prog_cyc()<<", vdd="<<sys_clk.get_vdd()<<"] "<<msg<<endl;
     pthread_mutex_unlock(&cout_lock);
 }
 
 void err_log(string err)
 {
     pthread_mutex_lock(&cout_lock);
-    cout<<'['<<__FILE__<<"-"<<__LINE__<<": pro_cyc="<<pro_cyc<<", vdd="<<sys_clk.get_vdd()<<']'<<err<<endl;
+    cout<<"[Pro_cyc="<<sys_clk.get_prog_cyc()<<", vdd="<<sys_clk.get_vdd()<<"] "<<err<<endl;
     pthread_mutex_unlock(&cout_lock);
 }
 
@@ -69,12 +86,12 @@ void at_falling_edge(mutex_t *lock)
 
 void init_sys_clk() // Starts the primal VDD clock and wait until it goes stable (covered 500 cycles)
 {
-    pthread_t clock;
-    pthread_create(&clock, NULL, [](void *arg)->void*{sys_clk.oscillator(100);return NULL;},NULL);
+    pthread_create(&(sys_clk.handle), NULL, [](void *arg)->void*{sys_clk.oscillator(100);return NULL;},NULL);
     msg_log("Waiting for sys_clk to be stable...", 0);
     int count = 0;
     mutex_t clk = PTHREAD_MUTEX_INITIALIZER;
-    while(count<500){
+    while(count<100)
+    {
         at_rising_edge(&clk);
         count++;
         at_falling_edge(&clk);
@@ -85,5 +102,13 @@ void init_sys_clk() // Starts the primal VDD clock and wait until it goes stable
 int main()
 {
     init_sys_clk();
+    init_main_mem();
+    sys_clk.start_prog();
+    int i = 110, li;
+    float f = 10.1, lf;
+    main_mem.enQ(true, false, 1, &i);
+    main_mem.enQ(true, true, 2, &f);
+    main_mem.enQ(false, false, 1, &li);
+    main_mem.enQ(false, true, 2, &lf);
     cin.get();
 }
