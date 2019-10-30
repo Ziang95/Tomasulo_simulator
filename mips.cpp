@@ -13,6 +13,7 @@ mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
 mutex_t cerr_lock = PTHREAD_MUTEX_INITIALIZER;
 int IQ_entries; 			// No. of Instruction Buffer entries (should be calculated from the input parser).
 int ROB_Entries;
+int RegFiles_entries = 32; 	// No. of Register files entries (it is stated that they are fixed). 
 RegFiles* RF; // pointer to 32 register files
 InstBuffer* IQ; // pointer to inst buffer
 ROB* Rob; //pointer to ROB
@@ -126,7 +127,7 @@ Config.SetVariables();
 	IQ = new InstBuffer[IQ_entries]; 
 
 	for (int i = 0; i < IQ_entries; i++) {
-		vector <string> temp = input.ReadInstruction(input.instructions[i]); //we know that temp size is always 4
+		vector <string> temp = Config.ReadInstruction(Config.instructions[i]); //we know that temp size is always 4
 		(*(IQ + i)).Opcode = temp[0];
 		(*(IQ + i)).Dest = temp[1];
 		(*(Rob + i)).Dest = temp[1];

@@ -16,8 +16,8 @@
 #include "ROB.h"
 #include "ExeTable.h"
 #include "LdSdQueue.h"
-//#include "Import.h"
-#include "config.h"
+#include "Import.h"
+//#include "config.h"
 using namespace std;
 //---------------------------------------------------------------------------------------------------------//
 //---------------------------------******Global variables*******--------------------------------------------
@@ -44,7 +44,7 @@ int FM_funcUnits;
 int I_funcUnits;
 int LS_funcUnits;
 int inst_commit; // instruction in line to commit
-config input; //object of out input file
+Import input; //object of out input file
 RegFiles* RF; // pointer to 32 register files
 ExeTable* Extable; //pointer to extable
 InstBuffer* IQ; // pointer to inst buffer
@@ -58,7 +58,7 @@ void intialize() {
 	//Import input;
 	input.ReadInput(); //read iput txt file and generating a new txt file with no extra spaces or commas
 	input.SetVariables(); //getting needed info from txt file
-/*	ROB_entries = input.ROB_entries;
+	ROB_entries = input.ROB_entries;
 	RSFM_entries = input.FP_Mul_rs;
 	LSQ_entries = input.LdSd_rs;
 	RSFA_entries = input.FP_adder_rs;
@@ -71,8 +71,7 @@ void intialize() {
 	FA_funcUnits = input.FP_adder_fu;
 	FM_funcUnits = input.FP_Mul_fu;
 	I_funcUnits = input.Int_adder_fu;
-	LS_funcUnits = input.LdSd_fu; */
-	ROB_entries = input.getROB_LEN();
+	LS_funcUnits = input.LdSd_fu; 
 	IQ_entries = (input.instructions.size()); //no of inst we have
 	//cout << "no of inst " << IQ_entries << endl; 
 
@@ -91,12 +90,12 @@ void intialize() {
 		(*(IQ + i)).src1 = temp[2];
 		(*(IQ + i)).src2 = temp[3];
 		//output test--------------------------------------------------------------------------------
-	/*
+	
 		cout << "opcode " << i << (*(IQ + i)).Opcode << endl;
 		cout << "Dest " << i << (*(IQ + i)).Dest << endl;
 		cout<< "dest rob "<< i << (*(Rob +i)).Dest <<endl;
 		cout << "src1 " << i << (*(IQ + i)).src1 << endl;
-		cout << "src2 " << i << (*(IQ + i)).src2 << endl;   */
+		cout << "src2 " << i << (*(IQ + i)).src2 << endl;   
 		//------------------------------------------------------------------------------------------
 	}
 	//---------------------------------------------------------------------------------------------------------
@@ -117,13 +116,13 @@ void intialize() {
 			RF[Reg_number].floatRegFile = input.convertStringToFloat(value);
 		}
 	}
-	//cout << "R1 " << RF[1].intRegFile << " " << " R2 " << RF[2].intRegFile << " F2 " << RF[2].floatRegFile << endl;
+	cout << "R1 " << RF[1].intRegFile << " " << " R2 " << RF[2].intRegFile << " F2 " << RF[2].floatRegFile << endl;
 	//----------------------------------------------------------------------------------------------------------------
 	// creating Exetable and puting instructions in it 
 	Extable = new ExeTable[IQ_entries];
 	for (int i = 0; i < IQ_entries; i++) {
 		Extable[i].Instruction = input.instructions[i];
-		//cout << Extable[i].Instruction << endl;
+		cout << Extable[i].Instruction << endl;
 
 	}
 	
@@ -219,8 +218,7 @@ int main()
 {
 	intialize();
 	//commit();
-	//cout << IQ[0].Dest << endl;
-	//cout << "R1 " << RF[1].intRegFile << " " << " R2 " << RF[2].intRegFile << " F2 " << RF[2].floatRegFile << endl;
-	cout << input.getFPADDR_EX_TIME();
+	cout << IQ[0].Dest << endl;
+	cout << "R1 " << RF[1].intRegFile << " " << " R2 " << RF[2].intRegFile << " F2 " << RF[2].floatRegFile << endl;
 }
 

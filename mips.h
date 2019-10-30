@@ -12,7 +12,7 @@ typedef pthread_mutex_t mutex_t;
 #define DEBUG_LEVEL 2
 #define INT_REG_NUM 32
 #define FP_REG_NUM 32
-#define ROB_LEN 128
+#define ROB_LEN 
 #define MEM_LEN 256
 
 #define INTADDR_RS_NUM 2
