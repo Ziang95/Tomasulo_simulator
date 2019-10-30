@@ -1,2 +1,2 @@
-# tumasulo_simulator
-Project one for ECE2162
+# Tomasulo_simulator
+A pthread implementation of an MIPS CPU simulator using Tomasulo algorithm.
