@@ -116,7 +116,7 @@ void intialize() {
 			RF[Reg_number].floatRegFile = input.convertStringToFloat(value);
 		}
 	}
-	cout << "R1 " << RF[1].intRegFile << " " << " R2 " << RF[2].intRegFile << " F2 " << RF[2].floatRegFile << endl;
+	//cout << "R1 " << RF[1].intRegFile << " " << " R2 " << RF[2].intRegFile << " F2 " << RF[2].floatRegFile << endl;
 	//----------------------------------------------------------------------------------------------------------------
 	// creating Exetable and puting instructions in it 
 	Extable = new ExeTable[IQ_entries];

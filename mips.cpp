@@ -133,7 +133,16 @@ Config.SetVariables();
 		(*(Rob + i)).Dest = temp[1];
 		(*(IQ + i)).src1 = temp[2];
 		(*(IQ + i)).src2 = temp[3];
+     /*   //output test--------------------------------------------------------------------------------
+	
+		cout << "opcode " << i << (*(IQ + i)).Opcode << endl;
+		cout << "Dest " << i << (*(IQ + i)).Dest << endl;
+		cout<< "dest rob "<< i << (*(Rob +i)).Dest <<endl;
+		cout << "src1 " << i << (*(IQ + i)).src1 << endl;
+		cout << "src2 " << i << (*(IQ + i)).src2 << endl;   */
+		//------------------------------------------------------------------------------------------
 }
+
 //creating the 32 Register file we have (fixed)
 
 	RF = new RegFiles[RegFiles_entries];
@@ -151,6 +160,8 @@ Config.SetVariables();
 			RF[Reg_number].floatRegFile = Config.convertStringToFloat(value);
 		}
 	}
+    	//cout << "R1 " << RF[1].intRegFile << " " << " R2 " << RF[2].intRegFile << " F2 " << RF[2].floatRegFile << endl;
+
 	//----------------------------------------------------------------------------------------------------------------
 	
 	
@@ -169,4 +180,7 @@ int main()
     main_mem.enQ(LOAD, FLTP, 2, &lf);
     cin.get();
     initialize();
+   // cout << IQ[0].Dest << endl;
+	//cout << "R1 " << RF[1].intRegFile << " " << " R2 " << RF[2].intRegFile << " F2 " << RF[2].floatRegFile << endl;
+    //cout<<"INTADDER EX "<< Config.getINTADDR_EX_TIME()<<endl;
 }
