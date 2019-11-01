@@ -6,14 +6,16 @@
 typedef void * (*threadFunc)(void *);
 typedef enum valType{INTGR,FLTP}valType;
 typedef enum memOpCode{STORE, LOAD}memOpCode;
-typedef union memCell{
+typedef union memCell
+{
     int i;
     float f;
 }memCell;
 
 #include "mips.h"
 
-typedef struct QEntry{
+typedef struct QEntry
+{
     bool done;                          //Indicates whether the entry operation is finished
     memOpCode code;                     //Enum type, LOAD or STORE
     valType type;                       //Value type can either be float 
@@ -27,7 +29,8 @@ class memory
     private:
         memCell *buf;                   //Memory storage buffer, can store either Integer or Float Point value
         int size = 0;                   //Size of [buf]
-        struct dataBus{
+        struct
+        {
             valType type;               //Type of the value forwarding on CDB
             memCell val;                //The value forwarding on CDB
             int addr;                   //Where the current forwarding value comes from
@@ -41,7 +44,8 @@ class memory
         pthread_t handle;               //The handle of thread running mem_automat()
         memory(int sz);                 //Constructor
         ~memory();                      //Destructor 
-        QEntry* enQ(memOpCode cpde, valType type, int addr, void* val); //Enqueue function, Should only be called at falling edges
+        bool setMem(valType type, int addr, void* val);
+        QEntry* enQ(memOpCode code, valType type, int addr, void* val); //Enqueue function, Should only be called at falling edges
         void mem_automat();             //Memory unit maintainer, clear the load/store queue automatically, iterates infinitly in a thread.
 };
 

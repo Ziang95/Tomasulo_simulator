@@ -1,26 +1,15 @@
 #include "mips.h"
-#include "config.h"
-#include "InstBuffer.h"
-#include "RegFiles.h"
-#include "ROB.h"
-#include "RAT.h"
-//#include "memory.h"
 
-using namespace std;
+config *CPU_cfg = nullptr;
+instr *instr_Q = nullptr;
 
-config Config;
+registor reg(INT_REG_NUM, FP_REG_NUM);
+
 clk_tick sys_clk = clk_tick(); //System clock
-memory main_mem = memory(MEM_LEN); //Main memory 
-mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
-mutex_t cerr_lock = PTHREAD_MUTEX_INITIALIZER;
-int IQ_entries; 			// No. of Instruction Buffer entries (should be calculated from the input parser).
-int ROB_Entries;
-int RegFiles_entries = 32; 	// No. of Register files entries (it is stated that they are fixed). 
-RegFiles* RF; // pointer to 32 register files
-InstBuffer* IQ; // pointer to inst buffer
-ROB* Rob; //pointer to ROB
-RAT* Rat;
-//memory* mem;
+memory main_mem = memory(MEM_LEN); //Main memory
+
+static mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
+static mutex_t cerr_lock = PTHREAD_MUTEX_INITIALIZER;
 
 
 clk_tick::clk_tick()
@@ -46,6 +35,7 @@ void clk_tick::start_prog()
     mutex_t clk = PTHREAD_MUTEX_INITIALIZER;
     at_falling_edge(&clk);
     pthread_cond_broadcast(&start);
+    sys_clk.prog_cyc = 0;
     prog_started = true;
 }
 
@@ -61,6 +51,8 @@ bool clk_tick::oscillator(int freq)
         if (prog_started)
             prog_cyc++;
         vdd = 1;
+        if (prog_cyc == 1)
+            msg_log("Program Started", 0);
         pthread_cond_broadcast(&vdd_1);
         Sleep(500/freq);
         vdd = 0;
@@ -114,90 +106,13 @@ void init_sys_clk() // Starts the primal VDD clock and wait until it goes stable
     }
     msg_log("sys_clk stablized", 0);
 }
-void initialize(){
-
-	//creat inst. buffer, Register file, ROB and intialize parameters needed
-
-Config.ReadInput();
-Config.SetVariables();
-    ROB_Entries = Config.getROB_LEN();
-	IQ_entries = (Config.instructions.size()); //no of inst we have
-
-	//creating ROB that has 128 entry(stated)---------------------------------------------------------------
-	Rob = new ROB[ROB_Entries];
-    //-----------------------------------------------------------------------------------------------------
-   // creating our instruction buffer
-
-	IQ = new InstBuffer[IQ_entries]; 
-
-	for (int i = 0; i < IQ_entries; i++) {
-		vector <string> temp = Config.ReadInstruction(Config.instructions[i]); //we know that temp size is always 4
-		(*(IQ + i)).Opcode = temp[0];
-		(*(IQ + i)).Dest = temp[1];
-		(*(Rob + i)).Dest = temp[1];
-		(*(IQ + i)).src1 = temp[2];
-		(*(IQ + i)).src2 = temp[3];
-     /*   //output test--------------------------------------------------------------------------------
-	
-		cout << "opcode " << i << (*(IQ + i)).Opcode << endl;
-		cout << "Dest " << i << (*(IQ + i)).Dest << endl;
-		cout<< "dest rob "<< i << (*(Rob +i)).Dest <<endl;
-		cout << "src1 " << i << (*(IQ + i)).src1 << endl;
-		cout << "src2 " << i << (*(IQ + i)).src2 << endl;   */
-		//------------------------------------------------------------------------------------------
-}
-
-//creating the 32 Register file we have (fixed)
-
-	RF = new RegFiles[RegFiles_entries];
-	// every register is now hardwired to it's number R0 is at RF[0] ans so on
-
-	for (int i = 0; i < Config.register_var.size(); i++) { // my format is R1=10 , F2=30.1 ... etc will get which reg
-		string delimiter = "=";
-		string token = Config.register_var[i].substr(1, Config.register_var[i].find(delimiter) - 1); //token1 is 1, 2 to R1 and R2 ...etc
-		string value = Config.register_var[i].substr(Config.register_var[i].find(delimiter) + 1, Config.register_var[i].length());
-		int Reg_number = Config.convertStringToInt(token);
-		if (Config.register_var[i][0] == 'R') { //integer Register
-			RF[Reg_number].intRegFile = Config.convertStringToInt(value);
-		}
-		else { // float register
-			RF[Reg_number].floatRegFile = Config.convertStringToFloat(value);
-		}
-	}
-    	//cout << "R1 " << RF[1].intRegFile << " " << " R2 " << RF[2].intRegFile << " F2 " << RF[2].floatRegFile << endl;
-
-	//----------------------------------------------------------------------------------------------------------------
-    //------------------------------------------------------------------
-	// creating intial RAT which will have R1, R2,.. etc as intial value.
-	Rat = new RAT[RegFiles_entries];
-
-	for (int i = 0; i < RegFiles_entries; i++) {
-		Rat[i].R = "R" + to_string(i);
-		Rat[i].F = "F" + to_string(i);
-		cout << Rat[i].R << endl;
-		cout << Rat[i].F << endl;
-	}
-	//-----------------------------------------------------------------------
-  /* for (int i = 0; i < Config.memory_var.size(); i++) 
-	{
-		// my format is Mem[4]=1 , Mem[12]=3.4 ... etc
-		string delimiter = "]";
-		string token = Config.memory_var[i].substr(4, Config.memory_var[i].find(delimiter) -4); //token1 is 1, 2,......,etc
-		string value = Config.memory_var[i].substr(Config.memory_var[i].find(delimiter) + 2, Config.memory_var[i].length());
-		int Mem_entry = Config.convertStringToInt(token);
-		mem[Mem_entry].value = Config.convertStringToFloat(value);
-        cout<<mem[Mem_entry].value<<endl;
-
-	}  */
-	
-	
-}
 
 int main()
 {
     init_sys_clk();
     init_main_mem();
     sys_clk.start_prog();
+    read_config_instrs("./inputTest.txt");
     int i = 110, li;
     float f = 10.1, lf;
     main_mem.enQ(STORE, INTGR, 1, &i);
@@ -205,8 +120,4 @@ int main()
     main_mem.enQ(LOAD, INTGR, 1, &li);
     main_mem.enQ(LOAD, FLTP, 2, &lf);
     cin.get();
-    initialize();
-   // cout << IQ[0].Dest << endl;
-	//cout << "R1 " << RF[1].intRegFile << " " << " R2 " << RF[2].intRegFile << " F2 " << RF[2].floatRegFile << endl;
-    //cout<<"INTADDER EX "<< Config.getINTADDR_EX_TIME()<<endl;
 }

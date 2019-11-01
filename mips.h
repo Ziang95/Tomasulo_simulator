@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <iostream>
 #include <string>
+#include <unordered_map>
 #include <windows.h>
 
 typedef pthread_cond_t cond_t;
@@ -12,28 +13,16 @@ typedef pthread_mutex_t mutex_t;
 #define DEBUG_LEVEL 2
 #define INT_REG_NUM 32
 #define FP_REG_NUM 32
-#define ROB_LEN 
 #define MEM_LEN 256
-
-#define INTADDR_RS_NUM 2
-#define INTADDR_EX_TIME 1
-#define INTADDR_MEM_TIME 0
-
-#define FPADDR_RS_NUM 3
-#define FPADDR_EX_TIME 3
-#define FPADDR_MEM_TIME 0
-
-#define FPMTPLR_RS_NUM 2
-#define FPMTPLR_EX_TIME 20
-#define FPMTPLR_MEM_TIME 0
-
-#define LD_STR_RS_NUM 3
-#define LD_STR_EX_TIME 1
-#define LD_STR_MEM_TIME 4
 
 #define R0 0
 
 #include "memory.h"
+#include "import.h"
+#include "instruction.h"
+#include "registor.h"
+#include "ROB.h"
+#include "RAT.h"
 
 using namespace std;
 

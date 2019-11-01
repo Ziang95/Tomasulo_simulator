@@ -1,9 +1,8 @@
 #include "memory.h"
 
-using namespace std;
-
 extern clk_tick sys_clk;
 extern memory main_mem;
+extern config *CPU_cfg;
 
 memory::memory(int sz)
 {
@@ -29,14 +28,14 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
     {
         msg_log("Storing value to Addr="+to_string(entry.addr), 3);
         at_falling_edge(&clk);
-        if (i == LD_STR_MEM_TIME - 1)
+        if (i == CPU_cfg->ld_str->mem_time - 1)
             break;
         at_rising_edge(&clk);
     }
     if (entry.type == FLTP)
-        buf[entry.addr].f = *((float*)(entry.val));
+        buf[entry.addr].f = *((float*)entry.val);
     else
-        buf[entry.addr].i = *((int*)(entry.val));
+        buf[entry.addr].i = *((int*)entry.val);
     CDB.type = entry.type;
     CDB.addr = entry.addr;
     CDB.val = buf[entry.addr];
@@ -54,9 +53,9 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
         msg_log("Forward store found, forwarding, Addr="+to_string(CDB.addr), 3);
         at_falling_edge(&clk);
         if (entry.type == FLTP)
-            *((float*)(entry.val)) = CDB.val.f;
+            *((float*)entry.val) = CDB.val.f;
         else
-            *((int*)(entry.val)) = CDB.val.i;
+            *((int*)entry.val) = CDB.val.i;
     }
     else
     {
@@ -64,7 +63,7 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
         {
             msg_log("Loading value from Addr="+to_string(entry.addr), 3);
             at_falling_edge(&clk);
-            if (i == LD_STR_MEM_TIME - 1)
+            if (i == CPU_cfg->ld_str->mem_time - 1)
                 break;
             at_rising_edge(&clk);
         }
@@ -91,6 +90,19 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
     LSQ[index].val = val;
     LSQ[index].done = false;
     return LSQ+index;
+}
+
+bool memory::setMem(valType type, int addr, void* val)
+{
+    if (addr>=size){
+        err_log("Mem set out of range");
+        return false;
+    }
+    if (type == INTGR)
+        buf[addr].i = *(int*)val;
+    else
+        buf[addr].f = *(float*)val;
+    return true;
 }
 
 void memory::mem_automat()

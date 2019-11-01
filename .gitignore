@@ -34,6 +34,8 @@
 .vscode/
 .vs/
 Debug/
+ConsoleApplication*/
+
 *.sln
 *.vcxproj.filters
 *.vcxproj.user
