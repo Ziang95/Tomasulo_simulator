@@ -3,6 +3,8 @@
 #include "InstBuffer.h"
 #include "RegFiles.h"
 #include "ROB.h"
+#include "RAT.h"
+//#include "memory.h"
 
 using namespace std;
 
@@ -17,6 +19,8 @@ int RegFiles_entries = 32; 	// No. of Register files entries (it is stated that 
 RegFiles* RF; // pointer to 32 register files
 InstBuffer* IQ; // pointer to inst buffer
 ROB* Rob; //pointer to ROB
+RAT* Rat;
+//memory* mem;
 
 
 clk_tick::clk_tick()
@@ -163,6 +167,28 @@ Config.SetVariables();
     	//cout << "R1 " << RF[1].intRegFile << " " << " R2 " << RF[2].intRegFile << " F2 " << RF[2].floatRegFile << endl;
 
 	//----------------------------------------------------------------------------------------------------------------
+    //------------------------------------------------------------------
+	// creating intial RAT which will have R1, R2,.. etc as intial value.
+	Rat = new RAT[RegFiles_entries];
+
+	for (int i = 0; i < RegFiles_entries; i++) {
+		Rat[i].R = "R" + to_string(i);
+		Rat[i].F = "F" + to_string(i);
+		cout << Rat[i].R << endl;
+		cout << Rat[i].F << endl;
+	}
+	//-----------------------------------------------------------------------
+  /* for (int i = 0; i < Config.memory_var.size(); i++) 
+	{
+		// my format is Mem[4]=1 , Mem[12]=3.4 ... etc
+		string delimiter = "]";
+		string token = Config.memory_var[i].substr(4, Config.memory_var[i].find(delimiter) -4); //token1 is 1, 2,......,etc
+		string value = Config.memory_var[i].substr(Config.memory_var[i].find(delimiter) + 2, Config.memory_var[i].length());
+		int Mem_entry = Config.convertStringToInt(token);
+		mem[Mem_entry].value = Config.convertStringToFloat(value);
+        cout<<mem[Mem_entry].value<<endl;
+
+	}  */
 	
 	
 }

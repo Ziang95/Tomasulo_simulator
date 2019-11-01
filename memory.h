@@ -37,6 +37,7 @@ class memory
         bool store(QEntry& entry);      //Store the value to the address saved in LSQ entry
         bool load(QEntry& entry);       //Load the value from address saved in LSQ entry
     public:
+            double value;
         pthread_t handle;               //The handle of thread running mem_automat()
         memory(int sz);                 //Constructor
         ~memory();                      //Destructor 
