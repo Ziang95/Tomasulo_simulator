@@ -10,7 +10,7 @@
 typedef pthread_cond_t cond_t;
 typedef pthread_mutex_t mutex_t;
 
-#define DEBUG_LEVEL 2
+#define DEBUG_LEVEL 3
 #define INT_REG_NUM 32
 #define FP_REG_NUM 32
 #define MEM_LEN 256

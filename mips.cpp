@@ -98,13 +98,13 @@ void init_sys_clk() // Starts the primal VDD clock and wait until it goes stable
     msg_log("Waiting for sys_clk to be stable...", 0);
     int count = 0;
     mutex_t clk = PTHREAD_MUTEX_INITIALIZER;
-    while(count<100)
+    while(count<10)
     {
         at_rising_edge(&clk);
         count++;
         at_falling_edge(&clk);
     }
-    msg_log("sys_clk stablized", 0);
+    msg_log("sys_clk stablized", 1);
 }
 
     //------------------------------------------------------------------
@@ -134,13 +134,7 @@ int main()
 {
     init_sys_clk();
     init_main_mem();
-    sys_clk.start_prog();
     read_config_instrs("./inputTest.txt");
-    int i = 110, li;
-    float f = 10.1, lf;
-    main_mem.enQ(STORE, INTGR, 1, &i);
-    main_mem.enQ(STORE, FLTP, 2, &f);
-    main_mem.enQ(LOAD, INTGR, 1, &li);
-    main_mem.enQ(LOAD, FLTP, 2, &lf);
+    sys_clk.start_prog();
     cin.get();
 }

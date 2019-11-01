@@ -10,6 +10,13 @@
 
 using namespace std;
 
+opCode get_opcode(string opName)
+{
+    for (char &c : opName)
+        c = toupper(c);
+    
+}
+
 class instr_param
 {
     public:

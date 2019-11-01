@@ -10,7 +10,8 @@ typedef enum opCode
     SUB, SUB_D,
     ADDI,
     MUL_D,
-    LD, ST
+    LD, SD,
+    BNE, BEQ
 }opCode;
 
 typedef struct instr
@@ -35,8 +36,26 @@ class instr_queue
         {
             head = 0; 
         };
-        void ptr_advance();
-        void ptr_branch();
+        bool ptr_advance()
+        {
+            if (head >= size)
+            {
+                err_log("Instr queue acccess out of range while advancing");
+                return false;
+            }
+            head ++;
+            return true;
+        };
+        BOOLEAN ptr_branch(int dest)
+        {
+            if (dest >= size || dest<0)
+            {
+                err_log("Instr queue acccess out of range while branching");
+                return false;
+            }
+            head = dest;
+            return true;
+        };
         const instr *getInstr();
 };
 

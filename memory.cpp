@@ -23,14 +23,14 @@ memory::~memory()
 
 bool memory::store(QEntry& entry) //This function is designed with "being called at rising edge" in mind
 {
-    mutex_t clk = PTHREAD_MUTEX_INITIALIZER;
+    mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
     for (int i = 0; ; i++)
     {
         msg_log("Storing value to Addr="+to_string(entry.addr), 3);
-        at_falling_edge(&clk);
+        at_falling_edge(&lock);
         if (i == CPU_cfg->ld_str->mem_time - 1)
             break;
-        at_rising_edge(&clk);
+        at_rising_edge(&lock);
     }
     if (entry.type == FLTP)
         buf[entry.addr].f = *((float*)entry.val);
@@ -47,11 +47,11 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
 
 bool memory::load(QEntry& entry) //This function is designed with "being called at rising edge" in mind
 {
-    mutex_t clk = PTHREAD_MUTEX_INITIALIZER;
+    mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
     if (CDB.addr == entry.addr)
     {
         msg_log("Forward store found, forwarding, Addr="+to_string(CDB.addr), 3);
-        at_falling_edge(&clk);
+        at_falling_edge(&lock);
         if (entry.type == FLTP)
             *((float*)entry.val) = CDB.val.f;
         else
@@ -62,10 +62,10 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
         for (int i = 0; ; i++)
         {
             msg_log("Loading value from Addr="+to_string(entry.addr), 3);
-            at_falling_edge(&clk);
+            at_falling_edge(&lock);
             if (i == CPU_cfg->ld_str->mem_time - 1)
                 break;
-            at_rising_edge(&clk);
+            at_rising_edge(&lock);
         }
         if (entry.type == FLTP)
             *((float*)entry.val) = buf[entry.addr].f;
@@ -107,10 +107,10 @@ bool memory::setMem(valType type, int addr, void* val)
 
 void memory::mem_automat()
 {
-    mutex_t clk = PTHREAD_MUTEX_INITIALIZER;
+    mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
     while (true)
     {
-        at_rising_edge(&clk);
+        at_rising_edge(&lock);
         if (front != rear)
         {
             if (LSQ[front].code == STORE)
@@ -120,7 +120,7 @@ void memory::mem_automat()
             front = (++front)%512;
         }
         else
-            at_falling_edge(&clk);
+            at_falling_edge(&lock);
     }
 }
 
