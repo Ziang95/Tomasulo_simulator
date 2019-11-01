@@ -37,6 +37,7 @@ class instr_queue
         };
         void ptr_advance();
         void ptr_branch();
+        const instr *getInstr();
 };
 
 #endif

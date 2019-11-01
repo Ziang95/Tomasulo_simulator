@@ -96,8 +96,8 @@ void read_config_instrs(string path)
     }
     #pragma region Set_mem_value
     getline(file, line);
-    istringstream iss(line);
-    while (getline(iss, tmp))
+    istringstream iss1(line);
+    while (getline(iss1, tmp))
     {
         size_t e = tmp.find('=');
         size_t lb = tmp.find('[');
