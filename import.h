@@ -4,18 +4,12 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <algorithm>
 
 #include "mips.h"
 #include "instruction.h"
 
 using namespace std;
-
-opCode get_opcode(string opName)
-{
-    for (char &c : opName)
-        c = toupper(c);
-    
-}
 
 class instr_param
 {
@@ -57,6 +51,6 @@ class config
         };
 };
 
-void read_config_instrs(string path);
+bool read_config_instrs(string path);
 
 #endif

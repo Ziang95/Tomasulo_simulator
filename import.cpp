@@ -2,7 +2,7 @@
 
 extern config *CPU_cfg;
 extern clk_tick sys_clk;
-extern instr *instr_Q;
+extern instr_queue *instr_Q;
 extern registor reg;
 extern memory main_mem;
 
@@ -34,13 +34,14 @@ opCode get_opcode(string opName)
         return opCode::ERR;
 }
 
-void read_config_instrs(string path)
+bool read_config_instrs(string path)
 {
     if (sys_clk.get_prog_cyc())
     {
         err_log("Unsafe config modification, CPU is running");
-        return;
+        return false;
     }
+    msg_log("Reading input file " + path, 1);
     ifstream file;
     string line, h, h1, h2; //h = head
     int p[4]; //p = params
@@ -49,7 +50,7 @@ void read_config_instrs(string path)
     catch(const ifstream::failure& e)
     {
         err_log("Exception occurred when opening file "+path);
-        return;
+        return false;
     }
 #pragma region read_CPU_config
     if (CPU_cfg)
@@ -97,7 +98,7 @@ void read_config_instrs(string path)
     if (!cfg_ret->fp_add || !cfg_ret->fp_mul || !cfg_ret->int_add || !cfg_ret->ROB_num || !cfg_ret->ld_str)
     {
         err_log("Config file is incomplete");
-        return;
+        return false;
     }
     CPU_cfg = cfg_ret;
 #pragma endregion
@@ -148,8 +149,8 @@ void read_config_instrs(string path)
     if (instr_Q)
         delete instr_Q;
     vector <instr> tmp_Q = {};
-    string opName;
-    while(:getline(file, line))
+    string opName, dest, op1, op2, ofst, imm;
+    while(getline(file, line))
     {
         if (line.empty())
             continue;
@@ -160,8 +161,82 @@ void read_config_instrs(string path)
             istringstream s(line);
             s>>opName;
             opCode code = get_opcode(opName);
+            switch (code)
+            {
+            case ADD:
+            case ADD_D:
+            case SUB:
+            case SUB_D:
+            case MUL_D:
+            {
+                getline(s, dest, ',');
+                getline(s, op1, ',');
+                getline(s, op2, ',');
+                dest.erase(remove(dest.begin(), dest.end(), ' '), dest.end());
+                op1.erase(remove(op1.begin(), op1.end(), ' '), op1.end());
+                op2.erase(remove(op2.begin(), op2.end(), ' '), op2.end());
+                tmp_i.code = code;
+                tmp_i.dest = dest;
+                tmp_i.oprnd1 = op1;
+                tmp_i.oprnd2 = op2;
+                break;
+            }
+            case ADDI:
+            {
+                getline(s, dest, ',');
+                getline(s, op1, ',');
+                getline(s, imm, ',');
+                dest.erase(remove(dest.begin(), dest.end(), ' '), dest.end());
+                op1.erase(remove(op1.begin(), op1.end(), ' '), op1.end());
+                imm.erase(remove(imm.begin(), imm.end(), ' '), imm.end());
+                tmp_i.code = code;
+                tmp_i.dest = dest;
+                tmp_i.oprnd1 = op1;
+                tmp_i.imdt = stoi(imm);
+                break;
+            }
+            case BNE:
+            case BEQ:
+            {
+                getline(s, dest, ',');
+                getline(s, op1, ',');
+                getline(s, ofst, ',');
+                dest.erase(remove(dest.begin(), dest.end(), ' '), dest.end());
+                op1.erase(remove(op1.begin(), op1.end(), ' '), op1.end());
+                ofst.erase(remove(ofst.begin(), ofst.end(), ' '), ofst.end());
+                tmp_i.code = code;
+                tmp_i.dest = dest;
+                tmp_i.oprnd1 = op1;
+                tmp_i.offset = stoi(ofst);
+                break;
+            }
+            case LD:
+            case SD:
+            {
+                getline(s, dest, ',');
+                getline(s, ofst, ',');
+                dest.erase(remove(dest.begin(), dest.end(), ' '), dest.end());
+                ofst.erase(remove(ofst.begin(), ofst.end(), ' '), ofst.end());
+                tmp_i.code = code;
+                tmp_i.dest = dest;
+                size_t lb = ofst.find('(');
+                size_t rb = ofst.find(')');
+                tmp_i.oprnd1 = ofst.substr(lb + 1, rb - lb - 1);
+                tmp_i.offset = stoi(ofst.substr(0, lb));
+                break;
+            }
+            case ERR:
+                err_log("Instruction opCode error, please check input file");
+                return false;
+                break;
+            default:
+                break;
+            }
+            tmp_Q.push_back(tmp_i);
         }
     }
+    instr_Q = new instr_queue(tmp_Q);
 #pragma endregion
-    return;
+    msg_log("Read completed successfully!", 1);
+    return true;
 }

@@ -1,7 +1,7 @@
 #include "mips.h"
 
 config *CPU_cfg = nullptr;
-instr *instr_Q = nullptr;
+instr_queue *instr_Q = nullptr;
 
 registor reg(INT_REG_NUM, FP_REG_NUM);
 
@@ -135,6 +135,12 @@ int main()
     init_sys_clk();
     init_main_mem();
     read_config_instrs("./inputTest.txt");
+    for (int i = 0; i<instr_Q->size; i++)
+    {
+        const instr *tmp = instr_Q->getInstr();
+        cout<<tmp->code<<' '<<tmp->dest<<' '<<tmp->oprnd1<<' '<<tmp->oprnd2<<' '<<tmp->imdt<<' '<<tmp->offset<<endl;
+        instr_Q->ptr_advance();
+    }
     sys_clk.start_prog();
     cin.get();
 }

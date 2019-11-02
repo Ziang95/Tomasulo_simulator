@@ -2,6 +2,9 @@
 #define INSTRUCTION_H
 
 #include <string>
+
+#include "mips.h"
+
 using namespace std;
 
 typedef enum opCode
@@ -11,7 +14,8 @@ typedef enum opCode
     ADDI,
     MUL_D,
     LD, SD,
-    BNE, BEQ
+    BNE, BEQ,
+    ERR
 }opCode;
 
 typedef struct instr
@@ -20,9 +24,9 @@ typedef struct instr
     opCode code;
     string dest;
     string oprnd1;
-    string oprnd2;
-    int imdt;
-    int offset;
+    string oprnd2 ;
+    int imdt = 0;
+    int offset = 0;
 }instr;
 
 class instr_queue
@@ -32,30 +36,9 @@ class instr_queue
     public:
         const size_t size;
         const vector<instr> Q;
-        instr_queue(vector<instr> a):Q(a),size(a.size())
-        {
-            head = 0; 
-        };
-        bool ptr_advance()
-        {
-            if (head >= size)
-            {
-                err_log("Instr queue acccess out of range while advancing");
-                return false;
-            }
-            head ++;
-            return true;
-        };
-        BOOLEAN ptr_branch(int dest)
-        {
-            if (dest >= size || dest<0)
-            {
-                err_log("Instr queue acccess out of range while branching");
-                return false;
-            }
-            head = dest;
-            return true;
-        };
+        instr_queue(vector<instr> a);
+        bool ptr_advance();
+        bool ptr_branch(int dest);
         const instr *getInstr();
 };
 
