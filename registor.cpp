@@ -44,7 +44,14 @@ bool registor::set(string name, void *val)
         return false;
     }
     if (name[0] == 'R')
+    {
+        if (index == 0)
+        {
+            err_log("R0 can't be modified");
+            return false;
+        }
         intReg[index] = *(int*)val;
+    }
     else if (name[0] == 'F')
         flpReg[index] = *(float*)val;
     else

@@ -10,6 +10,12 @@ typedef union memCell
     int i;
     float f;
 }memCell;
+typedef struct
+{
+    valType type;
+    memCell value;
+    int addr;
+}CDB;
 
 #include "instruction.h"
 
@@ -31,17 +37,13 @@ class memory
     private:
         memCell *buf;                   //Memory storage buffer, can store either Integer or Float Point value
         int size = 0;                   //Size of [buf]
-        struct
-        {
-            valType type;               //Type of the value forwarding on CDB
-            memCell val;                //The value forwarding on CDB
-            int addr;                   //Where the current forwarding value comes from
-        }CDB;                           //Common Data Bus
-        struct QEntry LSQ[512];         //Load/Store queue
+        CDB mem_CDB;
+        struct QEntry LSQ[128];         //Load/Store queue
         int front, rear;                //Control pointers of circular queue [LSQ]
         bool store(QEntry& entry);      //Store the value to the address saved in LSQ entry
         bool load(QEntry& entry);       //Load the value from address saved in LSQ entry
     public:
+        int next_vdd = 1;
         pthread_t handle;               //The handle of thread running mem_automat()
         memory(int sz);                 //Constructor
         ~memory();                      //Destructor 

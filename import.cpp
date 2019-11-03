@@ -238,5 +238,6 @@ bool read_config_instrs(string path)
     instr_Q = new instr_queue(tmp_Q);
 #pragma endregion
     msg_log("Read completed successfully!", 1);
+    file.close();
     return true;
 }

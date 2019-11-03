@@ -14,10 +14,10 @@ struct timeLine
 class ROBEntry
 {
 public:
-    bool finished;        // Ready to commit or not.
+    bool finished;      // Ready to commit or not.
     string name;
     string Dest;        // Destination of the instruction (R1, R2, F1, F2)
-    memCell Value;       // Result of the instruction, entry of ROB waiting to finish, address for Ld/St.
+    memCell Value;      // Result of the instruction, entry of ROB waiting to finish, address for Ld/St.
     opCode code;        // Opcode of the operation.
     timeLine output;
 

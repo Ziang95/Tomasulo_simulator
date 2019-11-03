@@ -3,13 +3,14 @@
 extern clk_tick sys_clk;
 extern memory main_mem;
 extern config *CPU_cfg;
+extern vector<int*> clk_wait_list;
 
 memory::memory(int sz)
 {
     buf = new memCell[sz];
     size = sz;
     front = rear = 0;
-    CDB.addr = -1;
+    mem_CDB.addr = -1;
     for (auto c: LSQ)
     {
         c.token = PTHREAD_COND_INITIALIZER;
@@ -27,18 +28,18 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
     for (int i = 0; ; i++)
     {
         msg_log("Storing value to Addr="+to_string(entry.addr), 3);
-        at_falling_edge(&lock);
+        at_falling_edge(&lock, next_vdd);
         if (i == CPU_cfg->ld_str->mem_time - 1)
             break;
-        at_rising_edge(&lock);
+        at_rising_edge(&lock, next_vdd);
     }
     if (entry.type == FLTP)
         buf[entry.addr].f = *((float*)entry.val);
     else
         buf[entry.addr].i = *((int*)entry.val);
-    CDB.type = entry.type;
-    CDB.addr = entry.addr;
-    CDB.val = buf[entry.addr];
+    mem_CDB.type = entry.type;
+    mem_CDB.addr = entry.addr;
+    mem_CDB.value = buf[entry.addr];
     entry.done = true;
     msg_log("Value stored, Val="+to_string(entry.type == FLTP?(*(float*)entry.val):(*(int*)entry.val)), 2);
     pthread_cond_broadcast(&(entry.token));
@@ -48,24 +49,24 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
 bool memory::load(QEntry& entry) //This function is designed with "being called at rising edge" in mind
 {
     mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-    if (CDB.addr == entry.addr)
+    if (mem_CDB.addr == entry.addr)
     {
-        msg_log("Forward store found, forwarding, Addr="+to_string(CDB.addr), 3);
-        at_falling_edge(&lock);
+        msg_log("Forward store found, forwarding, Addr="+to_string(mem_CDB.addr), 3);
+        at_falling_edge(&lock, next_vdd);
         if (entry.type == FLTP)
-            *((float*)entry.val) = CDB.val.f;
+            *((float*)entry.val) = mem_CDB.value.f;
         else
-            *((int*)entry.val) = CDB.val.i;
+            *((int*)entry.val) = mem_CDB.value.i;
     }
     else
     {
         for (int i = 0; ; i++)
         {
             msg_log("Loading value from Addr="+to_string(entry.addr), 3);
-            at_falling_edge(&lock);
+            at_falling_edge(&lock, next_vdd);
             if (i == CPU_cfg->ld_str->mem_time - 1)
                 break;
-            at_rising_edge(&lock);
+            at_rising_edge(&lock, next_vdd);
         }
         if (entry.type == FLTP)
             *((float*)entry.val) = buf[entry.addr].f;
@@ -84,8 +85,10 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
         throw -1;
     if (addr >= size || addr<0)
         throw -2;
+    if ((rear+1)%128 == front)
+        throw -3;
     int index = rear;
-    rear = (++rear)%512;
+    rear = (++rear)%128;
     LSQ[index].addr = addr;
     LSQ[index].code = code;
     LSQ[index].type = type;
@@ -112,21 +115,22 @@ void memory::mem_automat()
     mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
     while (true)
     {
-        at_rising_edge(&lock);
+        at_rising_edge(&lock, next_vdd);
         if (front != rear)
         {
             if (LSQ[front].code == SD)
                 store(LSQ[front]);
             else
                 load(LSQ[front]);
-            front = (++front)%512;
+            front = (++front)%128;
         }
         else
-            at_falling_edge(&lock);
+            at_falling_edge(&lock, next_vdd);
     }
 }
 
 void init_main_mem()
 {
+    clk_wait_list.push_back(&main_mem.next_vdd);
     pthread_create(&main_mem.handle, NULL, [](void *arg)->void*{main_mem.mem_automat();return NULL;}, NULL);
 }

@@ -1,17 +1,31 @@
 #ifndef RESERV_STATION_H
 #define RESERV_STATION_H
 
+using namespace std;
+
+#include "memory.h"
+
+typedef struct
+{
+    valType type;
+    memCell value;
+    int source;
+    cond_t token;
+}CDB_QEntry;
+
 #include "mips.h"
 
-class CDB{
+class reservCDB{
     private:
-        valType type;
-        memCell value;
-        int source;
+        CDB_QEntry queue[128];
+        int front, rear;
     public:
-        bool set_bus(valType type, void *val, int source);
+        reservCDB();
+        pthread_t handle;
+        bool enQ(valType t, void *v, int s);
         int get_source();
-        bool get_val(void *val);
+        bool get_val(void *v);
+        void CDB_automat();
 };
 
 class resStation
