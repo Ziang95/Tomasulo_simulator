@@ -1,10 +1,11 @@
-#include "RAT.h"
+#include "registor.h"
 
 extern clk_tick sys_clk;
 
 registor::registor(int iRegSize, int fRegSize)
 {
     intReg = new int[iRegSize];
+    intReg[0] = 0;
     flpReg = new float[fRegSize];
 }
 

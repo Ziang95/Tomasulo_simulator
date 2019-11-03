@@ -78,10 +78,12 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
     return true;
 }
 
- QEntry* memory::enQ(memOpCode code, valType type, int addr, void* val)
+ QEntry* memory::enQ(opCode code, valType type, int addr, void* val)
 {
-    if (addr >= size || addr<0)
+    if (code != SD && code != LD)
         throw -1;
+    if (addr >= size || addr<0)
+        throw -2;
     int index = rear;
     rear = (++rear)%512;
     LSQ[index].addr = addr;
@@ -113,7 +115,7 @@ void memory::mem_automat()
         at_rising_edge(&lock);
         if (front != rear)
         {
-            if (LSQ[front].code == STORE)
+            if (LSQ[front].code == SD)
                 store(LSQ[front]);
             else
                 load(LSQ[front]);

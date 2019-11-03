@@ -2,6 +2,7 @@
 
 config *CPU_cfg = nullptr;
 instr_queue *instr_Q = nullptr;
+unordered_map <string, int> RAT;
 
 registor reg(INT_REG_NUM, FP_REG_NUM);
 

@@ -2,8 +2,7 @@
 #define INSTRUCTION_H
 
 #include <string>
-
-#include "mips.h"
+#include <vector>
 
 using namespace std;
 
@@ -28,6 +27,8 @@ typedef struct instr
     int imdt = 0;
     int offset = 0;
 }instr;
+
+#include "mips.h"
 
 class instr_queue
 {
