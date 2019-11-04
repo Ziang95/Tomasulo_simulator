@@ -14,6 +14,7 @@ typedef pthread_mutex_t mutex_t;
 #define INT_REG_NUM 32
 #define FP_REG_NUM 32
 #define MEM_LEN 256
+#define Q_LEN 256
 
 #define R0 0
 
@@ -22,6 +23,7 @@ typedef pthread_mutex_t mutex_t;
 #include "instruction.h"
 #include "registor.h"
 #include "reserv_station.h"
+#include "FU.h"
 #include "ROB.h"
 
 using namespace std;

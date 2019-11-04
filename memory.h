@@ -14,7 +14,7 @@ typedef struct
 {
     valType type;
     memCell value;
-    int addr;
+    int source;
 }CDB;
 
 #include "instruction.h"
@@ -31,7 +31,6 @@ typedef struct QEntry
 
 #include "mips.h"
 
-
 class memory
 {
     private:
@@ -43,12 +42,12 @@ class memory
         bool store(QEntry& entry);      //Store the value to the address saved in LSQ entry
         bool load(QEntry& entry);       //Load the value from address saved in LSQ entry
     public:
-        int next_vdd = 1;
+        int next_vdd;
         pthread_t handle;               //The handle of thread running mem_automat()
         memory(int sz);                 //Constructor
         ~memory();                      //Destructor 
         bool setMem(valType type, int addr, void* val);
-        QEntry* enQ(opCode code, valType type, int addr, void* val); //Enqueue function, Should only be called at falling edges
+        const QEntry* enQ(opCode code, valType type, int addr, void* val); //Enqueue function, Should only be called at falling edges
         void mem_automat();             //Memory unit maintainer, clear the load/store queue automatically, iterates infinitly in a thread.
 };
 

@@ -5,26 +5,20 @@ using namespace std;
 
 #include "memory.h"
 
-typedef struct
-{
-    valType type;
-    memCell value;
-    int source;
-    cond_t token;
-}CDB_QEntry;
-
 #include "mips.h"
 
 class reservCDB{
     private:
-        CDB_QEntry queue[128];
+        CDB queue[Q_LEN];
+        CDB bus;
         int front, rear;
     public:
+        int next_vdd;
         reservCDB();
         pthread_t handle;
         bool enQ(valType t, void *v, int s);
-        int get_source();
-        bool get_val(void *v);
+        int get_source();                      //Called at rising edges
+        bool get_val(void *v);                 //Called at rising edges
         void CDB_automat();
 };
 
@@ -44,8 +38,10 @@ class resStation
         const opCode code;
         bool fill_rs(int dest, int Qj, int Qk, void *Vj, void *Vk);
         bool get_state();
-        virtual void exe();
+        void exe();
         cond_t token;
 };
+
+void init_reserv_CDB();
 
 #endif

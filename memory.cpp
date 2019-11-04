@@ -9,8 +9,9 @@ memory::memory(int sz)
 {
     buf = new memCell[sz];
     size = sz;
+    next_vdd = 1;
     front = rear = 0;
-    mem_CDB.addr = -1;
+    mem_CDB.source = -1;
     for (auto c: LSQ)
     {
         c.token = PTHREAD_COND_INITIALIZER;
@@ -38,7 +39,7 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
     else
         buf[entry.addr].i = *((int*)entry.val);
     mem_CDB.type = entry.type;
-    mem_CDB.addr = entry.addr;
+    mem_CDB.source = entry.addr;
     mem_CDB.value = buf[entry.addr];
     entry.done = true;
     msg_log("Value stored, Val="+to_string(entry.type == FLTP?(*(float*)entry.val):(*(int*)entry.val)), 2);
@@ -49,9 +50,9 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
 bool memory::load(QEntry& entry) //This function is designed with "being called at rising edge" in mind
 {
     mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-    if (mem_CDB.addr == entry.addr)
+    if (mem_CDB.source == entry.addr)
     {
-        msg_log("Forward store found, forwarding, Addr="+to_string(mem_CDB.addr), 3);
+        msg_log("Forward store found, forwarding, Addr="+to_string(mem_CDB.source), 3);
         at_falling_edge(&lock, next_vdd);
         if (entry.type == FLTP)
             *((float*)entry.val) = mem_CDB.value.f;
@@ -79,16 +80,16 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
     return true;
 }
 
- QEntry* memory::enQ(opCode code, valType type, int addr, void* val)
+ const QEntry* memory::enQ(opCode code, valType type, int addr, void* val)
 {
     if (code != SD && code != LD)
         throw -1;
     if (addr >= size || addr<0)
         throw -2;
-    if ((rear+1)%128 == front)
+    if ((rear+1)%Q_LEN == front)
         throw -3;
     int index = rear;
-    rear = (++rear)%128;
+    rear = (++rear)%Q_LEN;
     LSQ[index].addr = addr;
     LSQ[index].code = code;
     LSQ[index].type = type;
@@ -122,7 +123,7 @@ void memory::mem_automat()
                 store(LSQ[front]);
             else
                 load(LSQ[front]);
-            front = (++front)%128;
+            front = (++front)%Q_LEN;
         }
         else
             at_falling_edge(&lock, next_vdd);
@@ -131,6 +132,7 @@ void memory::mem_automat()
 
 void init_main_mem()
 {
+    main_mem.next_vdd = 1;
     clk_wait_list.push_back(&main_mem.next_vdd);
-    pthread_create(&main_mem.handle, NULL, [](void *arg)->void*{main_mem.mem_automat();return NULL;}, NULL);
+    pthread_create(&main_mem.handle, NULL, [](void *arg)->void*{main_mem.mem_automat(); return NULL;}, NULL);
 }

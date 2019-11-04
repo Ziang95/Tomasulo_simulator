@@ -2,14 +2,17 @@
 
 config *CPU_cfg = nullptr;
 instr_queue *instr_Q = nullptr;
+FU_Q intAdder_Q = FU_Q();
+FU_Q flpAdder_Q = FU_Q();
+FU_Q flpMtplr_Q = FU_Q();
 unordered_map <string, int> RAT;
-
-vector<int*> clk_wait_list;
 
 registor reg(INT_REG_NUM, FP_REG_NUM);
 
 clk_tick sys_clk = clk_tick(); //System clock
+vector<int*> clk_wait_list = {};
 memory main_mem = memory(MEM_LEN); //Main memory
+reservCDB rCDB = reservCDB();
 
 static mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
 static mutex_t cerr_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -50,7 +53,7 @@ bool clk_tick::oscillator(int freq)
 {
     if (freq > 500)
     {
-        err_log("Frequency should be under 500");
+        err_log("Frequency should be no greater than 500");
         return false;
     }
     while (true)
@@ -105,7 +108,7 @@ void at_falling_edge(mutex_t *lock, int &next_vdd)
 void start_sys_clk() // Starts the primal VDD clock and wait until it goes stable (covered 500 cycles)
 {
     sys_clk.reset_prog_cyc();
-    pthread_create(&(sys_clk.handle), NULL, [](void *arg)->void*{sys_clk.oscillator(100);return NULL;},NULL);
+    pthread_create(&(sys_clk.handle), NULL, [](void *arg)->void*{sys_clk.oscillator(500);return NULL;},NULL);
 }
 
 int main()
