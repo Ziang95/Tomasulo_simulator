@@ -22,9 +22,8 @@ typedef pthread_mutex_t mutex_t;
 #include "import.h"
 #include "instruction.h"
 #include "registor.h"
-#include "reserv_station.h"
-#include "FU.h"
 #include "ROB.h"
+#include "FU.h"
 
 using namespace std;
 

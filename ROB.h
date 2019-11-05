@@ -1,41 +1,46 @@
+#ifndef ROB_H
+#define ROB_H
+
 #include <iostream>
 #include <string>
 
 using namespace std;
 
-struct timeLine
+typedef struct timeLine
 {
     int issue;
     int exe;
     int mem;
+    int wBack;
     int commit;
-};
+}timeLine;
+
+#include "mips.h"
 
 class ROBEntry
 {
 public:
     bool finished;      // Ready to commit or not.
     string name;
-    string Dest;        // Destination of the instruction (R1, R2, F1, F2)
+    string regName;        // Destination of the instruction (R1, R2, F1, F2)
     memCell Value;      // Result of the instruction, entry of ROB waiting to finish, address for Ld/St.
     opCode code;        // Opcode of the operation.
     timeLine output;
-
-    string Inst;        // Instruction field.
-    string State;       // State of the instruction (Execute, Write_Result, Commit).
-    int Addr;           // Address for load and store.
-    int ETable_Entry;   // ETable entry for that instruction.
 };
 
 class ROB
 {
     private:
         int front, rear;
+        ROBEntry *buf;
     public:
         const int size;
-        ROBEntry *buf;
+        int next_vdd;
         ROB(int size);
+        ~ROB();
         ROBEntry* get_entry(int index);
-        int add_entry();
+        int add_entry(string n, string r);
         void ROB_automate();
 };
+
+#endif

@@ -37,10 +37,11 @@ class memory
         memCell *buf;                   //Memory storage buffer, can store either Integer or Float Point value
         int size = 0;                   //Size of [buf]
         CDB mem_CDB;
-        struct QEntry LSQ[128];         //Load/Store queue
+        struct QEntry LSQ[Q_LEN];         //Load/Store queue
         int front, rear;                //Control pointers of circular queue [LSQ]
         bool store(QEntry& entry);      //Store the value to the address saved in LSQ entry
         bool load(QEntry& entry);       //Load the value from address saved in LSQ entry
+        mutex_t Q_lock;
     public:
         int next_vdd;
         pthread_t handle;               //The handle of thread running mem_automat()

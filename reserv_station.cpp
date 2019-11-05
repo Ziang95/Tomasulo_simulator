@@ -1,68 +1,80 @@
 #include "reserv_station.h"
 #include "mips.h"
 
+extern clk_tick sys_clk;
 extern vector<int*> clk_wait_list;
-extern reservCDB rCDB;
+extern FU_CDB fCDB;
+extern ROB *CPU_ROB;
 
-reservCDB::reservCDB()
+resStation::resStation(FU_Q *Q, valType t):type(t)
 {
-    next_vdd = 1;
-    front = rear = 0;
-    bus.source = -1;
+    prnt_Q = Q;
+    busy = false;
+    dest = -1;
+    Rj = Rk = true;
 }
 
-bool reservCDB::enQ(valType t, void *v, int s)
+bool resStation::fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk)
 {
-    if ((rear+1)%Q_LEN == front)
+    busy = true;
+    dest = _dest;
+    Qj = _Qj;
+    Qk = _Qk;
+    if (type == FLTP)
     {
-        err_log("The reserv_CDB queue is full");
-        return false;
+        Vj.f = *(float*)_Vj;
+        Vk.f = *(float*)_Vk;
     }
-    int index = rear;
-    rear = (++rear)%Q_LEN;
-    queue[index].type = t;
-    if (t == INTGR)
-        queue[index].value.i = *(int*)v;
     else
-        queue[index].value.f = *(float*)v;
-    queue[index].source = s;
+    {
+        Vj.i = *(int*)_Vj;
+        Vk.i = *(int*)_Vk;
+    }
+    Rj = Qj<0? true:false;
+    Rk = Qk<0? true:false;
+    to_start = Rj&&Rk?false:true;
+    if (!to_start)
+        prnt_Q->enQ(dest, &rest, &Vj, &Vk);
     return true;
 }
 
-int reservCDB::get_source()
+bool resStation::get_state()
 {
-    return bus.source;
+    return busy;
 }
 
-bool reservCDB::get_val(void *v)
-{
-    if (bus.type == INTGR)
-        *(int*)v = bus.value.i;
-    else
-        *(float*)v = bus.value.f;
-    return true;
-}
-
-void reservCDB::CDB_automat()
+void resStation::reserv_automat()
 {
     mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-    while(true)
+    while (true)
     {
         at_rising_edge(&lock, next_vdd);
-        at_falling_edge(&lock, next_vdd);
-        if (front != rear)
+        if (busy)
         {
-            bus.source = queue[front].source;
-            bus.type = queue[front].type;
-            bus.value = queue[front].value;
-            front = (++front)%Q_LEN;
+            if (fCDB.get_source() == dest)
+            {
+                busy = false;
+                ROBEntry *R = CPU_ROB->get_entry(dest);
+                R->output.wBack = sys_clk.get_prog_cyc();
+            }
+            else if (!Rj || !Rk)
+            {
+                if (fCDB.get_source() == Qj)
+                {
+                    fCDB.get_val(&Vj);
+                    Rj = true;
+                }
+                else if (fCDB.get_source() == Qk)
+                {
+                    fCDB.get_val(&Vk);
+                    Rk = true;
+                }
+            }
+        }
+        at_falling_edge(&lock, next_vdd);
+        if (busy && to_start)
+        {
+            prnt_Q->enQ(dest, &rest, &Vj, &Vk);
         }
     }
-}
-
-void init_reserv_CDB()
-{
-    rCDB.next_vdd = 1;
-    clk_wait_list.push_back(&rCDB.next_vdd);
-    pthread_create(&rCDB.handle, NULL, [](void *arg)->void*{rCDB.CDB_automat(); return NULL;}, NULL);
 }

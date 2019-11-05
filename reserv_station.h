@@ -3,45 +3,30 @@
 
 using namespace std;
 
+#include "FU.h"
 #include "memory.h"
-
-#include "mips.h"
-
-class reservCDB{
-    private:
-        CDB queue[Q_LEN];
-        CDB bus;
-        int front, rear;
-    public:
-        int next_vdd;
-        reservCDB();
-        pthread_t handle;
-        bool enQ(valType t, void *v, int s);
-        int get_source();                      //Called at rising edges
-        bool get_val(void *v);                 //Called at rising edges
-        void CDB_automat();
-};
 
 class resStation
 {
     private:
         bool busy;
+        bool to_start;
         int dest;
+        memCell rest;
         int Qj;
         int Qk;
-        void *Vj;
-        void *Vk;
+        memCell Vj;
+        memCell Vk;
         bool Rj;
         bool Rk;
     public:
-        resStation(opCode code);
-        const opCode code;
-        bool fill_rs(int dest, int Qj, int Qk, void *Vj, void *Vk);
+        const valType type;
+        int next_vdd;
+        FU_Q *prnt_Q;
+        resStation(FU_Q *Q, valType t);
+        bool fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk);
         bool get_state();
-        void exe();
-        cond_t token;
+        void reserv_automat();
 };
-
-void init_reserv_CDB();
 
 #endif

@@ -4,6 +4,7 @@ extern clk_tick sys_clk;
 extern memory main_mem;
 extern config *CPU_cfg;
 extern vector<int*> clk_wait_list;
+extern ROB *CPU_ROB;
 
 memory::memory(int sz)
 {
@@ -12,6 +13,7 @@ memory::memory(int sz)
     next_vdd = 1;
     front = rear = 0;
     mem_CDB.source = -1;
+    Q_lock = PTHREAD_MUTEX_INITIALIZER;
     for (auto c: LSQ)
     {
         c.token = PTHREAD_COND_INITIALIZER;
@@ -86,8 +88,12 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
         throw -1;
     if (addr >= size || addr<0)
         throw -2;
+    pthread_mutex_lock(&Q_lock);
     if ((rear+1)%Q_LEN == front)
+    {
+        pthread_mutex_unlock(&Q_lock);
         throw -3;
+    }
     int index = rear;
     rear = (++rear)%Q_LEN;
     LSQ[index].addr = addr;
@@ -95,6 +101,7 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
     LSQ[index].type = type;
     LSQ[index].val = val;
     LSQ[index].done = false;
+    pthread_mutex_unlock(&Q_lock);
     return LSQ+index;
 }
 

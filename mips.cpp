@@ -2,17 +2,15 @@
 
 config *CPU_cfg = nullptr;
 instr_queue *instr_Q = nullptr;
-FU_Q intAdder_Q = FU_Q();
-FU_Q flpAdder_Q = FU_Q();
-FU_Q flpMtplr_Q = FU_Q();
+ROB *CPU_ROB = nullptr;
+
+FU_CDB fCDB = FU_CDB();
 unordered_map <string, int> RAT;
-
 registor reg(INT_REG_NUM, FP_REG_NUM);
-
 clk_tick sys_clk = clk_tick(); //System clock
 vector<int*> clk_wait_list = {};
 memory main_mem = memory(MEM_LEN); //Main memory
-reservCDB rCDB = reservCDB();
+
 
 static mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
 static mutex_t cerr_lock = PTHREAD_MUTEX_INITIALIZER;
