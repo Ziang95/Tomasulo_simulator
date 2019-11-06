@@ -23,7 +23,7 @@ public:
     bool finished;      // Ready to commit or not.
     string name;
     string regName;        // Destination of the instruction (R1, R2, F1, F2)
-    memCell Value;      // Result of the instruction, entry of ROB waiting to finish, address for Ld/St.
+    memCell value;      // Result of the instruction, entry of ROB waiting to finish, address for Ld/St.
     opCode code;        // Opcode of the operation.
     timeLine output;
 };
@@ -45,5 +45,6 @@ class ROB
 };
 
 void* ROB_thread_container(void* arg);
+void init_CPU_ROB();
 
 #endif

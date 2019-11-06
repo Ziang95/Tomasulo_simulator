@@ -44,7 +44,6 @@ class FU_Q
     public:
         FU_Q();
         const FU_QEntry* enQ(int d, void *r, void *op1, void *op2);
-        bool is_empty();
         FU_QEntry* deQ();
 };
 
@@ -94,5 +93,7 @@ class flpMtplr : public functionUnit
 void* intAdder_thread_container(void *arg);
 void* flpAdder_thread_container(void *arg);
 void* flpMlptr_thread_container(void *arg);
+
+void init_FUs();
 
 #endif

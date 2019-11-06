@@ -19,13 +19,14 @@ class resStation
         memCell Vk;
         bool Rj;
         bool Rk;
+        bool sub;
     public:
         const valType type;
         pthread_t handle;
         int next_vdd;
         FU_Q *prnt_Q;
         resStation(FU_Q *Q, valType t);
-        bool fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk);
+        bool fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk, bool _sub);
         bool get_state();
         void reserv_automat();
 };

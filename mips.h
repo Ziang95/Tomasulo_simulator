@@ -16,8 +16,6 @@ typedef pthread_mutex_t mutex_t;
 #define MEM_LEN 256
 #define Q_LEN 256
 
-#define R0 0
-
 #include "memory.h"
 #include "import.h"
 #include "instruction.h"

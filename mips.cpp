@@ -3,7 +3,7 @@
 config *CPU_cfg = nullptr;
 instr_queue *instr_Q = nullptr;
 ROB *CPU_ROB = nullptr;
-pthread_t iss_U;
+pthread_t iss_unit;
 vector<intAdder*> iAdder;
 vector<flpAdder*> fAdder;
 vector<flpMtplr*> fMtplr;
@@ -12,9 +12,9 @@ vector<flpMtplr*> fMtplr;
 FU_CDB fCDB = FU_CDB();
 unordered_map <string, int> RAT;
 registor reg = registor(INT_REG_NUM, FP_REG_NUM);
-clk_tick sys_clk = clk_tick(); //System clock
+clk_tick sys_clk = clk_tick();
 vector<int*> clk_wait_list = {};
-memory main_mem = memory(MEM_LEN); //Main memory
+memory main_mem = memory(MEM_LEN);
 
 
 static mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -54,7 +54,7 @@ int all_unit_ready_for_one()
             err_log("null Ptr encountered in clk_wait_list");
             return -1;
         }
-        i*=*v; //This is a cute face LMAO
+        i*=*v;
     }
     return i == 1;
 }
@@ -69,7 +69,7 @@ int all_unit_ready_for_zero()
             err_log("null Ptr encountered in clk_wait_list");
             return -1;
         }
-        i+=*v; //This is a cute face LMAO
+        i+=*v;
     }
     return i == 0;
 }
@@ -149,70 +149,18 @@ void start_sys_clk() // Starts the primal VDD clock and wait until it goes stabl
     pthread_create(&(sys_clk.handle), NULL, [](void *arg)->void*{sys_clk.oscillator(500);return NULL;},NULL);
 }
 
-void init_CPU_ROB()
-{
-    if (CPU_ROB)
-        delete CPU_ROB;
-    CPU_ROB = new ROB(*(CPU_cfg->ROB_num));
-    clk_wait_list.push_back(&CPU_ROB->next_vdd);
-    pthread_create(&CPU_ROB->handle, NULL, &ROB_thread_container, CPU_ROB);
-}
-
-void init_FUs()
-{
-    if (iAdder.size())
-        for (auto &p : iAdder)
-            delete p;
-    if (fAdder.size())
-        for (auto &p : fAdder)
-            delete p;
-    if (fMtplr.size())
-        for (auto &p : fMtplr)
-            delete p;
-    iAdder = {};
-    fAdder = {};
-    fMtplr = {};
-    for (int i = 0; i<CPU_cfg->int_add->fu_num; i++)
-    {
-        auto tmp = new intAdder();
-        clk_wait_list.push_back(&tmp->next_vdd);
-        pthread_create(&tmp->handle, NULL, &intAdder_thread_container, tmp);
-        iAdder.push_back(tmp);
-    }
-    for (int i = 0; i<CPU_cfg->fp_add->fu_num; i++)
-    {
-        auto tmp = new flpAdder();
-        clk_wait_list.push_back(&tmp->next_vdd);
-        pthread_create(&tmp->handle, NULL, &flpAdder_thread_container, tmp);
-        fAdder.push_back(tmp);
-    }
-    for (int i = 0; i<CPU_cfg->fp_mul->fu_num; i++)
-    {
-        auto tmp = new flpMtplr();
-        clk_wait_list.push_back(&tmp->next_vdd);
-        pthread_create(&tmp->handle, NULL, &flpMlptr_thread_container, tmp);
-        fMtplr.push_back(tmp);
-    }
-}
-
 int main()
 {
-    read_config_instrs("./inputTest.txt");
+    if (!read_config_instrs("./inputTest.txt"))
+        return -1;
     // init_main_mem();
     init_CPU_ROB();
-    init_FU_CDB();
     init_FUs();
+    init_FU_CDB();
     init_issue_unit();
-    msg_log("Threads number is: "+to_string(clk_wait_list.size()), 0);
-    msg_log("instr buffer is: " + to_string(instr_Q->size), 3);
-    Sleep(1000);
+    msg_log("Threads count is: "+to_string(clk_wait_list.size()), 0);
+    msg_log("instr buffer size is: " + to_string(instr_Q->size), 3);
     start_sys_clk();
-    // for (int i = 0; i<instr_Q->size; i++)
-    // {
-    //     const instr *tmp = instr_Q->getInstr();
-    //     cout<<tmp->name<<' '<<tmp->dest<<' '<<tmp->oprnd1<<' '<<tmp->oprnd2<<' '<<tmp->imdt<<' '<<tmp->offset<<endl;
-    //     instr_Q->ptr_advance();
-    // }
     // int i = 110, li;
     // float f = 10.1, lf;
     // main_mem.enQ(SD, INTGR, 1, &i);
@@ -220,5 +168,4 @@ int main()
     // main_mem.enQ(LD, INTGR, 1, &li);
     // main_mem.enQ(LD, FLTP, 2, &lf);
     cin.get();
-    Sleep(3567587328);
 }

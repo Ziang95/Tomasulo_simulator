@@ -1,6 +1,6 @@
 #include "issue.h"
 
-extern pthread_t iss_U;
+extern pthread_t iss_unit;
 extern clk_tick sys_clk;
 extern vector<int*> clk_wait_list;
 extern vector<intAdder*> iAdder;
@@ -26,17 +26,14 @@ void *issue_automat(void *arg)
         tmp = nullptr;
         Qj = Qk = -1;
         if (!instr_Q->finished())
-        {
             tmp = instr_Q->getInstr();
-            instr_Q->ptr_advance();
-        }
         at_falling_edge(&lock, issue_next_vdd);
         if (tmp)
         {
             msg_log("Issuing code: " + tmp->name, 3);
             switch (tmp->code)
             {
-            case ADD:
+            case ADD: case ADDI: case SUB:
             {
                 resStation *avai = nullptr;
                 for (int i = 0; i < iAdder.size(); i++)
@@ -55,10 +52,17 @@ void *issue_automat(void *arg)
                         Qj = found_j->second;
                     else
                         reg.get(tmp->oprnd1, &i_Vj);
-                    if (found_k != RAT.end())
-                        Qk = found_k->second;
+                    if (tmp->code == ADDI)
+                        i_Vk = tmp->imdt;
                     else
-                        reg.get(tmp->oprnd2, &i_Vk);
+                    {
+                        if (found_k != RAT.end())
+                            Qk = found_k->second;
+                        else
+                            reg.get(tmp->oprnd2, &i_Vk);
+                        if (tmp->code == SUB)
+                            i_Vk = - i_Vk;
+                    }
                     int dest;
                     try
                     {
@@ -67,10 +71,93 @@ void *issue_automat(void *arg)
                     catch(const int e)
                     {
                         err_log("ROB is full");
-                    }            
+                        break;
+                    }
+                    instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
-                    avai->fill_rs(dest, Qj, Qk, &i_Vj, &i_Vk);
+                    avai->fill_rs(dest, Qj, Qk, &i_Vj, &i_Vk, tmp->code == SUB);
                 }
+                break;
+            }
+            case ADD_D: case SUB_D:
+            {
+                resStation *avai = nullptr;
+                for (int i = 0; i < fAdder.size(); i++)
+                {
+                    for (int j = 0; j < (*fAdder[i]).rs.size(); j++)
+                    {
+                        if ((*fAdder[i]).rs[j]->get_state() == false)
+                            avai = (*fAdder[i]).rs[j];
+                    }
+                }
+                if (avai)
+                {
+                    auto found_j = RAT.find(tmp->oprnd1);
+                    auto found_k = RAT.find(tmp->oprnd2);
+                    if (found_j != RAT.end())
+                        Qj = found_j->second;
+                    else
+                        reg.get(tmp->oprnd1, &f_Vj);
+                    if (found_k != RAT.end())
+                        Qk = found_k->second;
+                    else
+                        reg.get(tmp->oprnd2, &f_Vk);
+                    if (tmp->code == SUB_D)
+                        f_Vk = - f_Vk;
+                    int dest;
+                    try
+                    {
+                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest);
+                    }
+                    catch(const int e)
+                    {
+                        err_log("ROB is full");
+                        break;
+                    }
+                    instr_Q->ptr_advance();
+                    RAT[tmp->dest] = dest;
+                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &f_Vk, tmp->code == SUB_D);
+                }
+                break;
+            }
+            case MUL_D:
+            {
+                resStation *avai = nullptr;
+                for (int i = 0; i < fMtplr.size(); i++)
+                {
+                    for (int j = 0; j < (*fMtplr[i]).rs.size(); j++)
+                    {
+                        if ((*fMtplr[i]).rs[j]->get_state() == false)
+                            avai = (*fMtplr[i]).rs[j];
+                    }
+                }
+                if (avai)
+                {
+                    auto found_j = RAT.find(tmp->oprnd1);
+                    auto found_k = RAT.find(tmp->oprnd2);
+                    if (found_j != RAT.end())
+                        Qj = found_j->second;
+                    else
+                        reg.get(tmp->oprnd1, &f_Vj);
+                    if (found_k != RAT.end())
+                        Qk = found_k->second;
+                    else
+                        reg.get(tmp->oprnd2, &f_Vk);
+                    int dest;
+                    try
+                    {
+                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest);
+                    }
+                    catch(const int e)
+                    {
+                        err_log("ROB is full");
+                        break;
+                    }
+                    instr_Q->ptr_advance();
+                    RAT[tmp->dest] = dest;
+                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &f_Vk, tmp->code == SUB_D);
+                }
+                break;
             }
             default:
                 break;
@@ -83,5 +170,5 @@ void *issue_automat(void *arg)
 void init_issue_unit()
 {
     clk_wait_list.push_back(&issue_next_vdd);
-    pthread_create(&iss_U, NULL, &issue_automat, NULL);
+    pthread_create(&iss_unit, NULL, &issue_automat, NULL);
 }

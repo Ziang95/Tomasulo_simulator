@@ -106,26 +106,41 @@ bool read_config_instrs(string path)
     string tmp;
     reg.clear();
     getline(file, line);
+    line.erase(remove(line.begin(),line.end(),' '),line.end());
+    line.erase(remove(line.begin(),line.end(),'\t'),line.end());
     istringstream iss(line);
     while (getline(iss, tmp, ','))
     {
         size_t e = tmp.find('=');
         size_t f = tmp.find('F');
         size_t i = tmp.find('R');
-        if (f == string::npos)
+        if (i != string::npos)
         {
+            if (tmp.find('.') != string::npos)
+            {
+                err_log("Error: Trying to assign float value to an int reg");
+                return -1;
+            }
             int val = stoi(tmp.substr(e + 1, tmp.size() - e - 1));
             reg.set(tmp.substr(i, e), &val);
         }
-        else
+        else if (f != string::npos)
         {
             float val = stof(tmp.substr(e + 1, tmp.size() - e - 1));
             reg.set(tmp.substr(f, e), &val);
         }
+        else
+        {
+            err_log("IDK what's going on, better check your reg init line");
+            return -1;
+        }
+        
     }
 #pragma endregion
 #pragma region read_ini_mem_values
     getline(file, line);
+    line.erase(remove(line.begin(),line.end(),' '),line.end());
+    line.erase(remove(line.begin(),line.end(),'\t'),line.end());
     istringstream iss1(line);
     while (getline(iss1, tmp, ','))
     {
@@ -175,6 +190,9 @@ bool read_config_instrs(string path)
                 dest.erase(remove(dest.begin(), dest.end(), ' '), dest.end());
                 op1.erase(remove(op1.begin(), op1.end(), ' '), op1.end());
                 op2.erase(remove(op2.begin(), op2.end(), ' '), op2.end());
+                dest.erase(remove(dest.begin(), dest.end(), '\t'), dest.end());
+                op1.erase(remove(op1.begin(), op1.end(), '\t'), op1.end());
+                op2.erase(remove(op2.begin(), op2.end(), '\t'), op2.end());
                 tmp_i.code = code;
                 tmp_i.dest = dest;
                 tmp_i.oprnd1 = op1;
@@ -189,6 +207,9 @@ bool read_config_instrs(string path)
                 dest.erase(remove(dest.begin(), dest.end(), ' '), dest.end());
                 op1.erase(remove(op1.begin(), op1.end(), ' '), op1.end());
                 imm.erase(remove(imm.begin(), imm.end(), ' '), imm.end());
+                dest.erase(remove(dest.begin(), dest.end(), '\t'), dest.end());
+                op1.erase(remove(op1.begin(), op1.end(), '\t'), op1.end());
+                imm.erase(remove(imm.begin(), imm.end(), '\t'), imm.end());
                 tmp_i.code = code;
                 tmp_i.dest = dest;
                 tmp_i.oprnd1 = op1;
@@ -204,6 +225,9 @@ bool read_config_instrs(string path)
                 dest.erase(remove(dest.begin(), dest.end(), ' '), dest.end());
                 op1.erase(remove(op1.begin(), op1.end(), ' '), op1.end());
                 ofst.erase(remove(ofst.begin(), ofst.end(), ' '), ofst.end());
+                dest.erase(remove(dest.begin(), dest.end(), '\t'), dest.end());
+                op1.erase(remove(op1.begin(), op1.end(), '\t'), op1.end());
+                ofst.erase(remove(ofst.begin(), ofst.end(), '\t'), ofst.end());
                 tmp_i.code = code;
                 tmp_i.dest = dest;
                 tmp_i.oprnd1 = op1;
@@ -217,6 +241,8 @@ bool read_config_instrs(string path)
                 getline(s, ofst, ',');
                 dest.erase(remove(dest.begin(), dest.end(), ' '), dest.end());
                 ofst.erase(remove(ofst.begin(), ofst.end(), ' '), ofst.end());
+                dest.erase(remove(dest.begin(), dest.end(), '\t'), dest.end());
+                ofst.erase(remove(ofst.begin(), ofst.end(), '\t'), ofst.end());
                 tmp_i.code = code;
                 tmp_i.dest = dest;
                 size_t lb = ofst.find('(');
@@ -226,7 +252,7 @@ bool read_config_instrs(string path)
                 break;
             }
             case ERR:
-                err_log("Instruction opCode error, please check input file");
+                err_log("Instruction opCode error, please check input file " + path);
                 return false;
                 break;
             default:

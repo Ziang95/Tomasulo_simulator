@@ -15,8 +15,9 @@ resStation::resStation(FU_Q *Q, valType t):type(t)
     Rj = Rk = true;
 }
 
-bool resStation::fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk)
+bool resStation::fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk, bool _sub)
 {
+    sub = _sub;
     busy = true;
     dest = _dest;
     Qj = _Qj;
@@ -24,12 +25,12 @@ bool resStation::fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk)
     if (type == FLTP)
     {
         Vj.f = *(float*)_Vj;
-        Vk.f = *(float*)_Vk;
+        Vk.f = sub?-*(float*)_Vk:*(float*)_Vk;
     }
     else
     {
         Vj.i = *(int*)_Vj;
-        Vk.i = *(int*)_Vk;
+        Vk.i = sub?-*(int*)_Vk:*(int*)_Vk;
     }
     Rj = Qj<0? true:false;
     Rk = Qk<0? true:false;
@@ -57,6 +58,7 @@ void resStation::reserv_automat()
                 msg_log("WriteBack, ", 3);
                 busy = false;
                 ROBEntry *R = CPU_ROB->get_entry(dest);
+                fCDB.get_val(&R->value);
                 R->finished = true;
                 R->output.wBack = sys_clk.get_prog_cyc();
             }
@@ -79,6 +81,10 @@ void resStation::reserv_automat()
         {
             msg_log("Operands ready, sending to FU", 3);
             to_start = false;
+            if (type == FLTP)
+                Vk.f = sub? -Vk.f : Vk.f;
+            else
+                Vk.i = sub? -Vk.i : Vk.i;
             prnt_Q->enQ(dest, &rest, &Vj, &Vk);
         }
     }

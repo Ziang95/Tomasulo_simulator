@@ -19,7 +19,7 @@ typedef struct
 
 #include "instruction.h"
 
-typedef struct QEntry
+typedef struct LSQEntry
 {
     bool done;                          //Indicates whether the entry operation is finished
     opCode code;                        //Enum type, should be LOAD or STORE
@@ -27,9 +27,17 @@ typedef struct QEntry
     void* val;                          //Pointer of the value to store FROM of to load TO, can be int* or float*
     int addr;                           //Address to store to or load FROM
     cond_t token;                       //When this queue entry is finished, it broadcasts its status to all threads waiting outside
-}QEntry;
+}LSQEntry;
 
 #include "mips.h"
+
+class loadStoreQ
+{
+    private:
+        LSQEntry queue[Q_LEN];
+        int front, rear;
+        mutex_t Q_lock;
+};
 
 class memory
 {

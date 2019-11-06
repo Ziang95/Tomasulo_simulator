@@ -1,8 +1,11 @@
 #include "ROB.h"
 
+extern config *CPU_cfg;
+extern vector<int*> clk_wait_list;
 extern clk_tick sys_clk;
 extern ROB* CPU_ROB;
 extern unordered_map<string, int> RAT;
+extern registor reg;
 
 ROB::ROB(int s):size(s)
 {
@@ -50,11 +53,13 @@ void ROB::ROB_automate()
         at_rising_edge(&lock, next_vdd);
         if (front != rear && buf[front].finished)
         {
-            msg_log("Commit " + buf[front].regName, 3);
+            string rName = buf[front].regName;
+            msg_log("Commit " + rName + " = " + to_string(rName[0]=='R'? buf[front].value.i : buf[front].value.f), 3);
             buf[front].output.commit = sys_clk.get_prog_cyc();
-            auto got = RAT.find(buf[front].regName);
+            auto got = RAT.find(rName);
             if (got != RAT.end() && got->second == front)
                 RAT.erase(got);
+            reg.set(rName, &buf[front].value);
             //out put table;
             front = (++front)%size;
         }
@@ -67,4 +72,13 @@ void* ROB_thread_container(void* arg)
     auto p = (ROB*) arg;
     p->ROB_automate();
     return nullptr;
+}
+
+void init_CPU_ROB()
+{
+    if (CPU_ROB)
+        delete CPU_ROB;
+    CPU_ROB = new ROB(*(CPU_cfg->ROB_num));
+    clk_wait_list.push_back(&CPU_ROB->next_vdd);
+    pthread_create(&CPU_ROB->handle, NULL, &ROB_thread_container, CPU_ROB);
 }

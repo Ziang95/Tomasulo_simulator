@@ -5,7 +5,9 @@ extern clk_tick sys_clk;
 extern FU_CDB fCDB;
 extern vector<int*> clk_wait_list;
 extern ROB *CPU_ROB;
-
+extern vector<intAdder*> iAdder;
+extern vector<flpAdder*> fAdder;
+extern vector<flpMtplr*> fMtplr;
 
 FU_CDB::FU_CDB()
 {
@@ -160,13 +162,12 @@ void intAdder::FU_automate()
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
             {
-                msg_log("Calculating int "+to_string(*(int*)task.oprnd1)+" + "+to_string(*(int*)task.oprnd2), 3);
+                msg_log("Calculating INT "+to_string(*(int*)task.oprnd1)+" + "+to_string(*(int*)task.oprnd2), 3);
                 if (i == CPU_cfg->int_add->exe_time - 1)
                 {
                     *(int*)task.res = *(int*)task.oprnd1 + *(int*)task.oprnd2;
                     fCDB.enQ(INTGR, task.res, task.dest);
                     task.done = true;
-                    // msg_log("Calculatiion done, dest = " + to_string(task.dest), 3);
                     break;
                 }
                 at_falling_edge(&lock, next_vdd);
@@ -223,7 +224,7 @@ void flpAdder::FU_automate()
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
             {
-                msg_log("Calculating flp "+to_string(*(float*)task.oprnd1)+" + "+to_string(*(float*)task.oprnd2), 3);
+                msg_log("Calculating FLP "+to_string(*(float*)task.oprnd1)+" + "+to_string(*(float*)task.oprnd2), 3);
                 if (i == CPU_cfg->fp_add->exe_time - 1)
                 {
                     *(float*)task.res = *(float*)task.oprnd1 + *(float*)task.oprnd2;
@@ -285,7 +286,7 @@ void flpMtplr::FU_automate()
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
             {
-                msg_log("Calculating flp"+to_string(*(float*)task.oprnd1)+" X "+to_string(*(float*)task.oprnd2), 3);
+                msg_log("Calculating FLP "+to_string(*(float*)task.oprnd1)+" X "+to_string(*(float*)task.oprnd2), 3);
                 if (i == CPU_cfg->fp_mul->exe_time - 1)
                 {
                     *(float*)task.res = *(float*)task.oprnd1 * *(float*)task.oprnd2;
@@ -320,4 +321,41 @@ void* flpMlptr_thread_container(void *arg)
     auto p = (flpMtplr*) arg;
     p->FU_automate();
     return nullptr;
+}
+
+void init_FUs()
+{
+    if (iAdder.size())
+        for (auto &p : iAdder)
+            delete p;
+    if (fAdder.size())
+        for (auto &p : fAdder)
+            delete p;
+    if (fMtplr.size())
+        for (auto &p : fMtplr)
+            delete p;
+    iAdder = {};
+    fAdder = {};
+    fMtplr = {};
+    for (int i = 0; i<CPU_cfg->int_add->fu_num; i++)
+    {
+        auto tmp = new intAdder();
+        clk_wait_list.push_back(&tmp->next_vdd);
+        pthread_create(&tmp->handle, NULL, &intAdder_thread_container, tmp);
+        iAdder.push_back(tmp);
+    }
+    for (int i = 0; i<CPU_cfg->fp_add->fu_num; i++)
+    {
+        auto tmp = new flpAdder();
+        clk_wait_list.push_back(&tmp->next_vdd);
+        pthread_create(&tmp->handle, NULL, &flpAdder_thread_container, tmp);
+        fAdder.push_back(tmp);
+    }
+    for (int i = 0; i<CPU_cfg->fp_mul->fu_num; i++)
+    {
+        auto tmp = new flpMtplr();
+        clk_wait_list.push_back(&tmp->next_vdd);
+        pthread_create(&tmp->handle, NULL, &flpMlptr_thread_container, tmp);
+        fMtplr.push_back(tmp);
+    }
 }
