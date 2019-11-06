@@ -35,6 +35,7 @@ class ROB
         ROBEntry *buf;
     public:
         const int size;
+        pthread_t handle;
         int next_vdd;
         ROB(int size);
         ~ROB();
@@ -42,5 +43,7 @@ class ROB
         int add_entry(string n, string r);
         void ROB_automate();
 };
+
+void* ROB_thread_container(void* arg);
 
 #endif

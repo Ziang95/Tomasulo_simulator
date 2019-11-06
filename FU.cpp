@@ -9,7 +9,7 @@ extern ROB *CPU_ROB;
 
 FU_CDB::FU_CDB()
 {
-    next_vdd = 1;
+    next_vdd = 0;
     front = rear = 0;
     bus.source = -1;
     Q_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -62,6 +62,7 @@ void FU_CDB::CDB_automat()
             bus.source = queue[front].source;
             bus.type = queue[front].type;
             bus.value = queue[front].value;
+            msg_log("About to broadcast, source = ROB " + to_string(bus.source), 3);
             front = (++front)%Q_LEN;
         }
     }
@@ -69,7 +70,6 @@ void FU_CDB::CDB_automat()
 
 void init_FU_CDB()
 {
-    fCDB.next_vdd = 1;
     clk_wait_list.push_back(&fCDB.next_vdd);
     pthread_create(&fCDB.handle, NULL, [](void *arg)->void*{fCDB.CDB_automat(); return NULL;}, NULL);
 }
@@ -110,9 +110,30 @@ FU_QEntry *FU_Q::deQ()
 
 functionUnit::functionUnit()
 {
-    next_vdd = 1;
-    front = rear = 0;
+    next_vdd = 0;
     task.done = true;
+}
+
+intAdder::intAdder()
+{
+    next_vdd = 0;
+    task.done = true;
+    for (int i = 0; i<CPU_cfg->int_add->rs_num; i++)
+    {
+        auto tmp = new resStation(&queue, INTGR);
+        clk_wait_list.push_back(&tmp->next_vdd);
+        pthread_create(&tmp->handle, NULL, &rs_thread_container, tmp);
+        rs.push_back(tmp);
+    }
+}
+
+intAdder::~intAdder()
+{
+    for (auto &p : rs)
+    {
+        delete p;
+        p = nullptr;
+    }
 }
 
 void intAdder::FU_automate()
@@ -145,6 +166,7 @@ void intAdder::FU_automate()
                     *(int*)task.res = *(int*)task.oprnd1 + *(int*)task.oprnd2;
                     fCDB.enQ(INTGR, task.res, task.dest);
                     task.done = true;
+                    // msg_log("Calculatiion done, dest = " + to_string(task.dest), 3);
                     break;
                 }
                 at_falling_edge(&lock, next_vdd);
@@ -152,6 +174,28 @@ void intAdder::FU_automate()
             }
         }
         at_falling_edge(&lock, next_vdd);
+    }
+}
+
+flpAdder::flpAdder()
+{
+    next_vdd = 0;
+    task.done = true;
+    for (int i = 0; i<CPU_cfg->fp_add->rs_num; i++)
+    {
+        auto tmp = new resStation(&queue, FLTP);
+        clk_wait_list.push_back(&tmp->next_vdd);
+        pthread_create(&tmp->handle, NULL, &rs_thread_container, tmp);
+        rs.push_back(tmp);
+    }
+}
+
+flpAdder::~flpAdder()
+{
+    for (auto &p : rs)
+    {
+        delete p;
+        p = nullptr;
     }
 }
 
@@ -195,6 +239,28 @@ void flpAdder::FU_automate()
     }
 }
 
+flpMtplr::flpMtplr()
+{
+    next_vdd = 0;
+    task.done = true;
+    for (int i = 0; i<CPU_cfg->fp_mul->rs_num; i++)
+    {
+        auto tmp = new resStation(&queue, FLTP);
+        clk_wait_list.push_back(&tmp->next_vdd);
+        pthread_create(&tmp->handle, NULL, &rs_thread_container, tmp);
+        rs.push_back(tmp);
+    }
+}
+
+flpMtplr::~flpMtplr()
+{
+    for (auto &p : rs)
+    {
+        delete p;
+        p = nullptr;
+    }
+}
+
 void flpMtplr::FU_automate()
 {
     mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -233,4 +299,25 @@ void flpMtplr::FU_automate()
         }
         at_falling_edge(&lock, next_vdd);
     }
+}
+
+void* intAdder_thread_container(void *arg)
+{
+    auto p = (intAdder*) arg;
+    p->FU_automate();
+    return nullptr;
+}
+
+void* flpAdder_thread_container(void *arg)
+{
+    auto p = (flpAdder*) arg;
+    p->FU_automate();
+    return nullptr;
+}
+
+void* flpMlptr_thread_container(void *arg)
+{
+    auto p = (flpMtplr*) arg;
+    p->FU_automate();
+    return nullptr;
 }

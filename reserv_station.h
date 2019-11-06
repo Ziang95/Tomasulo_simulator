@@ -21,6 +21,7 @@ class resStation
         bool Rk;
     public:
         const valType type;
+        pthread_t handle;
         int next_vdd;
         FU_Q *prnt_Q;
         resStation(FU_Q *Q, valType t);
@@ -28,5 +29,7 @@ class resStation
         bool get_state();
         void reserv_automat();
 };
+
+void* rs_thread_container(void *arg);
 
 #endif

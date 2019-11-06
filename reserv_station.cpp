@@ -8,6 +8,7 @@ extern ROB *CPU_ROB;
 
 resStation::resStation(FU_Q *Q, valType t):type(t)
 {
+    next_vdd = 0;
     prnt_Q = Q;
     busy = false;
     dest = -1;
@@ -32,7 +33,7 @@ bool resStation::fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk)
     }
     Rj = Qj<0? true:false;
     Rk = Qk<0? true:false;
-    to_start = Rj&&Rk?false:true;
+    to_start = Rj&&Rk? false:true;
     if (!to_start)
         prnt_Q->enQ(dest, &rest, &Vj, &Vk);
     return true;
@@ -53,8 +54,10 @@ void resStation::reserv_automat()
         {
             if (fCDB.get_source() == dest)
             {
+                msg_log("WriteBack, ", 3);
                 busy = false;
                 ROBEntry *R = CPU_ROB->get_entry(dest);
+                R->finished = true;
                 R->output.wBack = sys_clk.get_prog_cyc();
             }
             else if (!Rj || !Rk)
@@ -72,9 +75,18 @@ void resStation::reserv_automat()
             }
         }
         at_falling_edge(&lock, next_vdd);
-        if (busy && to_start)
+        if (busy && to_start && Rj && Rk)
         {
+            msg_log("Operands ready, sending to FU", 3);
+            to_start = false;
             prnt_Q->enQ(dest, &rest, &Vj, &Vk);
         }
     }
+}
+
+void* rs_thread_container(void *arg)
+{
+    auto p = (resStation*) arg;
+    p->reserv_automat();
+    return nullptr;
 }

@@ -55,11 +55,12 @@ class resStation;
 class functionUnit
 {
     private:
-        int front, rear;
+        int front = 0;
+        int rear = 0;
     public:
         FU_Q queue;
         FU_QEntry task;
-        vector<resStation> rs;
+        vector<resStation*> rs;
         functionUnit();
         int next_vdd;
         pthread_t handle;
@@ -69,19 +70,29 @@ class functionUnit
 class intAdder : public functionUnit
 {
     public:
+        intAdder();
+        ~intAdder();
         void FU_automate();
 };
 
 class flpAdder : public functionUnit
 {
     public:
+        flpAdder();
+        ~flpAdder();
         void FU_automate();
 };
 
 class flpMtplr : public functionUnit
 {
     public:
+        flpMtplr();
+        ~flpMtplr();
         void FU_automate();
 };
+
+void* intAdder_thread_container(void *arg);
+void* flpAdder_thread_container(void *arg);
+void* flpMlptr_thread_container(void *arg);
 
 #endif

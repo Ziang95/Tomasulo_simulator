@@ -6,6 +6,11 @@ Q(a),size(a.size())
     head = 0; 
 }
 
+bool instr_queue::finished()
+{
+    return head == size;
+}
+
 bool instr_queue::ptr_advance()
 {
     if (head >= size)
@@ -30,5 +35,7 @@ bool instr_queue::ptr_branch(int dest)
 
 const instr* instr_queue::getInstr()
 {
+    if (head == size)
+        return nullptr;
     return &Q[head];
 }

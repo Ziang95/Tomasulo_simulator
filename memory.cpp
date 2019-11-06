@@ -10,7 +10,7 @@ memory::memory(int sz)
 {
     buf = new memCell[sz];
     size = sz;
-    next_vdd = 1;
+    next_vdd = 0;
     front = rear = 0;
     mem_CDB.source = -1;
     Q_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -139,7 +139,6 @@ void memory::mem_automat()
 
 void init_main_mem()
 {
-    main_mem.next_vdd = 1;
     clk_wait_list.push_back(&main_mem.next_vdd);
     pthread_create(&main_mem.handle, NULL, [](void *arg)->void*{main_mem.mem_automat(); return NULL;}, NULL);
 }

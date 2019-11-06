@@ -24,6 +24,7 @@ typedef pthread_mutex_t mutex_t;
 #include "registor.h"
 #include "ROB.h"
 #include "FU.h"
+#include "issue.h"
 
 using namespace std;
 

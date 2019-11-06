@@ -40,6 +40,7 @@ class instr_queue
         instr_queue(vector<instr> a);
         bool ptr_advance();
         bool ptr_branch(int dest);
+        bool finished();
         const instr *getInstr();
 };
 
