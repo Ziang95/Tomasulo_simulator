@@ -32,7 +32,7 @@ void Import::ReadInput()
 			stringstream line(s);
 			while (line >> s) {
 				outfile << s;
-				if (s != ",") {
+				if (s != "," ) {
 					input.push_back(s);
 					outfile << ' ';
 				}

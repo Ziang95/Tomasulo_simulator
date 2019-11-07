@@ -24,14 +24,14 @@ using namespace std;
 class Output {
 
 public:
-	void OutputFcn(ExeTable *Extable, RegFiles *RFiles, Memory *Mem)
+	void OutputFcn(ExeTable *Extable, RegFiles *RFiles, Memory *Mem , Import input)
 	{
-		Import in;
+		//Import input;
 	// This function print the Output file after the code execution.
 	 // it should be called from the main program, after the code execution, to make the output file.
 		try
 		{
-			ofstream outfile("extable.txt");
+			ofstream outfile("extable.csv");
 			// Output file where the data would Execution table, register files and memory would be written.
 			//FileWriter writer = new FileWriter("Output File.csv");
 
@@ -42,7 +42,7 @@ public:
 			outfile<<"Instructions,ISSUE,EXEC,MEM,WB,COMMIT \n";
 
 			// then we print the execution table itself.
-			for (int i = 0; i <9; i++)
+			for (int i = 0; i <input.instructions.size(); i++)
 			{
 				if (Extable[i].Instruction != "")
 				{
@@ -74,9 +74,9 @@ public:
 
 				}
 			}
-
-			outfile << ("\n\n");
 /*
+			outfile << ("\n\n");
+
 			// Second we print the header of the Integer Registers Files.
 			outfile << ("Integer Register File \n");
 			outfile << ("REGs,VALUE,REGs,VALUE \n");
@@ -109,7 +109,7 @@ public:
 				temp = temp + to_string(Mem[i].Value);
 				temp = temp + '\n';;
 				outfile << (temp);
-			} */
+			}  */
 
 			outfile.flush();
 			outfile.close();

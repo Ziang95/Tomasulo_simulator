@@ -10,8 +10,11 @@ class queue
 private:
 	std::mutex              d_mutex;
 	std::condition_variable d_condition;
-	std::deque<T>           d_queue;
+	//std::deque<T>           d_queue;
 public:
+	//std::mutex              d_mutex;
+	//std::condition_variable d_condition;
+	std::deque<T>           d_queue;
 	void push(T const& value) {
 		{
 			std::unique_lock<std::mutex> lock(this->d_mutex);
