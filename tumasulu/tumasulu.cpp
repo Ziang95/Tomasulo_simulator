@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <windows.h>
+#include <deque>
 #include <fstream>
 #include <string.h>
 #include <algorithm>
@@ -534,7 +535,7 @@ else if (Opcode == "BEQ" || Opcode == "BNE") {
 
 			if (IQ[pc].Src1.find("R") != string::npos)
 			{
-				temp = IQ[pc].Src1.substr(1, Rat[index].R.find('R') - 1); // remove R to convert it to integer.
+				temp = IQ[pc].Src1.substr(1,IQ[pc].Src1.find('R') - 1); // remove R to convert it to integer.
 				index = input.convertStringToInt(temp);
 				//cout << "3 is" << index << endl;
 				//Rat[3].R = "ROB5";
@@ -608,8 +609,9 @@ else if (Opcode == "BEQ" || Opcode == "BNE") {
 			ETable_pc++;
 			break;
 		}
-	//	break;
+		//break;
 	}
+	
 //	goto L1;
 }
 else if (Opcode == "ADD" || Opcode == "SUB") {
@@ -881,7 +883,7 @@ else if (Opcode == "ADDI")
 			}
 			break;
 		}
-		//break;
+		
 	}
 	//goto L1;
 }
@@ -1071,10 +1073,7 @@ else if (Opcode == "MULT.D")
 					Rob[j].ETable_Entry = ETable_pc;
 					Rob[j].State = "NULL";
 					//cout << Rob[j].Inst << endl;
-					Rat[5].F = "ROB6";
-					//cout << Rat[5].F << endl;
-					Rob[6].State = "Write_Back";
-					Rob[6].Value = 57.97;
+					
 					// resolving Src1
 					if (IQ[pc].Src1.find("F") != string::npos)
 					{
@@ -1216,17 +1215,20 @@ void Execute()
 	//cout << count << endl;
 	LdSdQueue* LSQ_temp = new LdSdQueue();
 	//cout << LSQ_count << endl;
-	/*for (int i = 0; i < LSQ_count+1; i++) {
-		if (count == 0) {
-			cout << "empty" << endl;
-			break;
-		}
-		
-		*LSQ_temp = LSQ.pop();
-		 count--;
-		cout << LSQ_temp->Inst << endl;	
-	} */
-	
+	//LSQ.push(*LSQ_temp);
+	/**LSQ_temp = LSQ.pop();
+	cout << LSQ_temp->Inst << endl;
+	for (int i = 0; i < LSQ.d_queue.size(); i++) {
+		//*LSQ_temp = LSQ.pop();
+			//cout << LSQ_temp->Inst << endl;
+		*LSQ_temp=LSQ.d_queue[i];
+		LSQ.d_queue[i].Inst = "gj";
+		//cout << LSQ_temp->Inst << endl;
+	} 
+	*LSQ_temp = LSQ.pop();
+			cout << LSQ_temp->Inst << endl;
+			*LSQ_temp = LSQ.pop();
+			cout << LSQ_temp->Inst << endl; */
 
 	if (cycles > 1) // No instruction could start execution before cycle 2.
 	{
@@ -1273,7 +1275,7 @@ void Execute()
 								}
 							}
 							// we updated all the things here then break;
-							break;
+							//break;
 						}
 						else if (Opcode == "BNE") {
 							result_bool = (RSI[i].Vj != RSI[i].Vk); // get the result.
@@ -1301,7 +1303,7 @@ void Execute()
 								//break;
 							}
 							// we updated all the things here then break;
-							break;
+							//break;
 							//break;
 						}
 						else if (Opcode == "ADD" || Opcode == "ADDI")
@@ -1343,13 +1345,13 @@ void Execute()
 
 								for (int j = 0; j < LSQ_count; j++)
 								{
-									*LSQ_temp = LSQ.pop(); // pull entry
-									if (LSQ_temp->Reg.compare(RSI[i].Dest) == 0)
+									//*LSQ_temp = LSQ.pop(); // pull entry
+									if (LSQ.d_queue[j].Reg.compare(RSI[i].Dest) == 0)
 									{
-										LSQ_temp->Reg = to_string(result);
-										LSQ_temp->State = "ReadyA";
+										LSQ.d_queue[j].Reg = to_string(result);
+										LSQ.d_queue[j].State = "ReadyA";
 									}
-									LSQ.push(*LSQ_temp); // push back again, do this for all entries.
+									//LSQ.push(*LSQ_temp); // push back again, do this for all entries.
 								}
 								// empty the ES entry and update the ExecTable.
 								RSI[i].Busy = false;
@@ -1375,11 +1377,81 @@ void Execute()
 							}
 						//	break;
 						}
-						//hhhhhhhhh
 						else if (Opcode == "SUB") 
-                                {
-                                                  }
-						brk = true;
+                        {
+							if (!CDB_busy)
+							{
+								CDB_busy = true;  // make the CDB busy
+								result = RSI[i].Vj - RSI[i].Vk; // get the result.
+								// get the ROB entry that needs update
+								string temp = RSI[i].Dest.substr(3, RSI[i].Dest.find("ROB") - 1);
+								ROB_index = input.convertStringToInt(temp);
+								Rob[ROB_index].Value = (float)result;
+								Rob[ROB_index].State = "Commit";
+
+								// find entries that need to be updated in the same RSI
+
+								for (int j = 0; j < RSI_entries; j++)
+								{
+									if (RSI[j].Busy)
+									{
+										if (RSI[j].Qj.compare(RSI[i].Dest)==0) // if any of the Q field match the Dest
+										{
+											RSI[j].Qj = "NULL";
+											RSI[j].Vj = (int)result;
+										}
+
+										if (RSI[j].Qk.compare(RSI[i].Dest)==0) // if any of the Q field match the Dest
+										{
+											RSI[j].Qk = "NULL";
+											RSI[j].Vk = (int)result;
+										}
+
+										// if all the operand are ready and the inst is not executing already										
+										if (!((RSI[j].State == "Execute") || (RSI[j].State == "Ready")))
+											if ((RSI[j].Qj == "NULL") && (RSI[j].Qk == "NULL"))
+												RSI[j].State = "Ready";
+									}
+								}
+								
+
+								// find entries that need to be updated in LSQ
+
+								for (int j = 0; j < LSQ_count; j++)
+								{
+									//*LSQ_temp = LSQ.pop(); // pull entry
+									if (LSQ.d_queue[j].Reg.compare(RSI[i].Dest)==0)
+									{
+										LSQ.d_queue[j].Reg = to_string(result);
+										LSQ.d_queue[j].State = "ReadyA";
+									}
+									//LSQ.push(*LSQ_temp); // push back again, do this for all entries.
+								}
+								// empty the ES entry and update the ExecTable.
+								RSI[i].Busy = false;
+								RSI[i].State = "NULL";
+								Extable[RSI[i].ETable_Entry].WB = cycles;
+								IU_busy = false;
+								// no since an instruction is done, we may start execution of another
+
+								for (int k = 0; k < RSI_entries; k++)
+								{
+									if (RSI[k].Busy && (RSI[k].State == "Ready") && (Extable[RSI[k].ETable_Entry].Issue < cycles)) // if it is ready and issued prior
+									{
+										RSI[k].State = "Execute";
+										RSI[k].Cycle = cycles;
+										Extable[RSI[k].ETable_Entry].Exec = cycles;
+										IU_busy = true;
+										break;
+									}
+								}
+								// we updated all the things here then break;
+								break;
+							}
+							//break;
+                        }
+
+			    		brk = true;
 					}
 					else // then we are not done yet
 						break;
@@ -1458,11 +1530,11 @@ void Execute()
 							// find entries that need to be updated in LSQ
 							for (int j = 0; j < LSQ_count; j++)
 							{
-								*LSQ_temp = LSQ.pop(); // pull entry
-								if (LSQ_temp->Dest.compare(RSFA[i].Dest) == 0) {
-									LSQ_temp->Dest = to_string(result);
+								//*LSQ_temp = LSQ.pop(); // pull entry
+								if (LSQ.d_queue[j].Dest.compare(RSFA[i].Dest) == 0) {
+									LSQ.d_queue[j].Dest = to_string(result);
 								}
-								LSQ.push(*LSQ_temp); // push back again, do this for all entries.
+								//LSQ.push(*LSQ_temp); // push back again, do this for all entries.
 							}
 							// find entries that need to be updated in the RSFM
 
@@ -1532,10 +1604,10 @@ void Execute()
 							// find entries that need to be updated in LSQ
 							for (int j = 0; j < LSQ_count; j++)
 							{
-								*LSQ_temp = LSQ.pop(); // pull entry
-								if (LSQ_temp->Dest.compare(RSFA[i].Dest) == 0)
-									LSQ_temp->Dest = to_string(result);
-								LSQ.push(*LSQ_temp); // push back again, do this for all entries.
+								//*LSQ_temp = LSQ.pop(); // pull entry
+								if (LSQ.d_queue[j].Dest.compare(RSFA[i].Dest) == 0)
+									LSQ.d_queue[j].Dest = to_string(result);
+								//LSQ.push(*LSQ_temp); // push back again, do this for all entries.
 							}
 							// find entries that need to be updated in the RSFM
 
@@ -1641,10 +1713,10 @@ void Execute()
 							// find entries that need to be updated in LSQ
 							for (int j = 0; j < LSQ_count; j++)
 							{
-								*LSQ_temp = LSQ.pop(); // pull entry
-								if (LSQ_temp->Dest.compare(RSFM[i].Dest)==0)
-									LSQ_temp->Dest = to_string(result);
-								LSQ.push(*LSQ_temp); // push back again, do this for all entries.
+								//*LSQ_temp = LSQ.pop(); // pull entry
+								if (LSQ.d_queue[j].Dest.compare(RSFM[i].Dest)==0)
+									LSQ.d_queue[j].Dest = to_string(result);
+								//LSQ.push(*LSQ_temp); // push back again, do this for all entries.
 							}
 							// find entries that need to be updated in the RSFA
 
@@ -1710,51 +1782,54 @@ void Execute()
 
 		for (int j = 0; j < LSQ_count; j++) // look for any instruction that is executing.
 		{
-			*LSQ_temp = LSQ.pop(); // pull entry
+			//*LSQ_temp = LSQ.pop(); // pull entry
 
-			if ((LSQ_temp->State == "Execute"))
+			if ((LSQ.d_queue[j].State == "Execute"))
 			{
-				temp = LSQ_temp->Cycle + 1; // is execution finished or not.
+				temp = LSQ.d_queue[j].Cycle + 1; // is execution finished or not.
 				if (temp == cycles)
 				{
-					result = (float)LSQ_temp->Offset + (int)input.convertStringToFloat(LSQ_temp->Reg);
-					LSQ_temp->Addr = (int)result;
+					result = (float)LSQ.d_queue[j].Offset + (int)input.convertStringToFloat(LSQ.d_queue[j].Reg);
+					LSQ.d_queue[j].Addr = (int)result;
 					// store also in the ROB.dest
 					for (int l = 0; l < ROB_entries; l++)
 					{
-						if (Rob[l].Busy && (Rob[l].ETable_Entry == LSQ_temp->ETable_Entry))
+						if (Rob[l].Busy && (Rob[l].ETable_Entry == LSQ.d_queue[j].ETable_Entry))
 						{
 							Rob[l].Addr = (int)result;
 							break;
 						}
 					}
-					LSQ_temp->State = "Memory";
+					LSQ.d_queue[j].State = "Memory";
+					//LSQ.push(*LSQ_temp);
 					break;
 				}
 			}
-			LSQ.push(*LSQ_temp);
+		//	LSQ.push(*LSQ_temp);
 		}
 		for (int j = 0; j < LSQ_count; j++) // look for any instruction that is ready.
 		{
-			*LSQ_temp = LSQ.pop(); // pull entry
+			//*LSQ_temp = LSQ.pop(); // pull entry
 
-			if ((LSQ_temp->State == "Ready") && (Extable[LSQ_temp->ETable_Entry].Issue < cycles))
+			if ((LSQ.d_queue[j].State == "Ready") && (Extable[LSQ.d_queue[j].ETable_Entry].Issue < cycles))
 			{
-				LSQ_temp->State = "Execute";
-				LSQ_temp->Cycle = cycles;
-				Extable[LSQ_temp->ETable_Entry].Exec = cycles;
+				LSQ.d_queue[j].State = "Execute";
+				LSQ.d_queue[j].Cycle = cycles;
+				Extable[LSQ.d_queue[j].ETable_Entry].Exec = cycles;
+				//LSQ.push(*LSQ_temp);
 				break;
 			}
-			LSQ.push(*LSQ_temp);
+			//LSQ.push(*LSQ_temp);
+
 		}
 		
 		for (int j = 0; j < LSQ_count; j++) // look for any instruction that is ready.
 		{
-			*LSQ_temp = LSQ.pop(); // pull entry
-			if (LSQ_temp->State == "ReadyA") {
-				LSQ_temp->State = "Ready";
+			//*LSQ_temp = LSQ.pop(); // pull entry
+			if (LSQ.d_queue[j].State == "ReadyA") {
+				LSQ.d_queue[j].State = "Ready";
 			}
-			LSQ.push(*LSQ_temp);
+			//LSQ.push(*LSQ_temp);
 		}
 
 	}
@@ -1915,6 +1990,7 @@ void memory()
 							{
 								LSQ.push(*LSQ_temp);
 							}
+
 							break;
 						}
 
@@ -2127,15 +2203,14 @@ int main()
 	intialize();
 	ETable_entries = 1000;
 	Arch_unit();
-	//Fetch();
-	//Execute();
+	
 	bool ex = true;
-
+	
 	do
 	{
 
 		if (!Stall)
-			Fetch();
+		Fetch();
 
 		Execute();
 		memory();
@@ -2163,7 +2238,7 @@ int main()
 
 
 	Output o;
-	o.OutputFcn(Extable, RF, Mem);
+	o.OutputFcn(Extable, RF, Mem,input); 
 	//memory();
 	/*LdSdQueue* Lsq = new LdSdQueue();
 	*Lsq = LSQ.pop();
