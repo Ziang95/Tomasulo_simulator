@@ -1,3 +1,5 @@
+#ifndef EXETABLE_H
+#define EXETABLE_H
 #include <iostream>
 #include <string>
 using namespace std;
@@ -11,3 +13,4 @@ public:
     int WB;
     int Commit;
 };
+#endif

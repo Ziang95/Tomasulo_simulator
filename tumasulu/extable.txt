@@ -1,0 +1,13 @@
+Execution Table
+Instructions,ISSUE,EXEC,MEM,WB,COMMIT 
+addi R1 R2 6,       1,2, ,3,4
+addi R4 R2 8,       2,3, ,4,5
+mult.d F6 F5 F8,    3,4, ,19,20
+add R7 R10 R5,      4,5, ,6,21
+add R12 R13 R14,    5,6, ,7,22
+add R14 R15 R16,    6,7, ,8,23
+add R17 R15 R13,    7,8, ,9,24
+mult.d F5 F4 F3,    8,9, ,24,25
+add.d F6 F7 F9,     9,10, ,14,26
+
+
