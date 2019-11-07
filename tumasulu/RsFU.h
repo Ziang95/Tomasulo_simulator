@@ -1,3 +1,5 @@
+#ifndef RSFU_H
+#define RSFU_H
 #include <iostream>
 #include <string>
 using namespace std;
@@ -17,3 +19,4 @@ public:
     string Dest;      // ROB entry that will store the operand.
     int ETable_Entry; // ETable entry for that instruction.
 };
+#endif

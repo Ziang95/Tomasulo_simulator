@@ -1,3 +1,5 @@
+#ifndef InstBuffer_h
+#define InstBuffer_h
 #include <iostream>
 #include <string>
 using namespace std;
@@ -7,6 +9,7 @@ public:
 	InstBuffer(){}
     string Opcode;
     string Dest;
-    string src1;
-    string src2;
+    string Src1;
+    string Src2;
 };
+#endif

@@ -1,3 +1,5 @@
+#ifndef RAT_H
+#define RAT_H
 #include <iostream>
 #include <string>
 using namespace std;
@@ -8,3 +10,4 @@ public:
     string R; //should be ROBx or Rx for integer.
     string F; //should be ROBx or Fx for float.
 };
+#endif
