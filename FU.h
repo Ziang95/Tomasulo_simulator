@@ -3,16 +3,20 @@
 #define FU_H
 
 #include <vector>
-
 using namespace std;
+
+#include "instruction.h"
 
 typedef struct FU_QEntry
 {
     bool done;
+    opCode code;
+    valType rtType;
     int dest;
     void *res;
     void *oprnd1;
     void *oprnd2;
+    int offset;
 }FU_QEntry;
 
 #include "mips.h"
@@ -43,7 +47,7 @@ class FU_Q
         mutex_t Q_lock;
     public:
         FU_Q();
-        const FU_QEntry* enQ(int d, void *r, void *op1, void *op2);
+        const FU_QEntry* enQ(opCode c, valType rt, int d, void *r, void *op1, void *op2, int offst);
         FU_QEntry* deQ();
 };
 
@@ -90,9 +94,18 @@ class flpMtplr : public functionUnit
         void FU_automate();
 };
 
+class ldsdUnit: public functionUnit
+{
+    public:
+        ldsdUnit();
+        ~ldsdUnit();
+        void FU_automate();
+};
+
 void* intAdder_thread_container(void *arg);
 void* flpAdder_thread_container(void *arg);
 void* flpMlptr_thread_container(void *arg);
+void* ldsdUnit_thread_container(void *arg);
 
 void init_FUs();
 

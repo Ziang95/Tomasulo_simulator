@@ -23,7 +23,7 @@ public:
     bool finished;      // Ready to commit or not.
     string name;
     string regName;        // Destination of the instruction (R1, R2, F1, F2)
-    memCell value;      // Result of the instruction, entry of ROB waiting to finish, address for Ld/St.
+    memCell value;      // Result of the instruction
     opCode code;        // Opcode of the operation.
     timeLine output;
 };
@@ -41,6 +41,7 @@ class ROB
         ~ROB();
         ROBEntry* get_entry(int index);
         int add_entry(string n, string r);
+        int get_front();
         void ROB_automate();
 };
 

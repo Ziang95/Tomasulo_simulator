@@ -15,13 +15,29 @@ resStation::resStation(FU_Q *Q, valType t):type(t)
     Rj = Rk = true;
 }
 
-bool resStation::fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk, bool _sub)
+void resStation::set_code(opCode c)
+{
+    code = c;
+}
+
+void resStation::set_ret_type(valType rt)
+{
+    retType = rt;
+}
+
+void resStation::set_rest(memCell res)
+{
+    rest = res;
+}
+
+bool resStation::fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk, int _offset, bool _sub)
 {
     sub = _sub;
     busy = true;
     dest = _dest;
     Qj = _Qj;
     Qk = _Qk;
+    offset = _offset;
     if (type == FLTP)
     {
         Vj.f = *(float*)_Vj;
@@ -36,7 +52,7 @@ bool resStation::fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk, bool
     Rk = Qk<0? true:false;
     to_start = Rj&&Rk? false:true;
     if (!to_start)
-        prnt_Q->enQ(dest, &rest, &Vj, &Vk);
+        prnt_Q->enQ(code, retType, dest, &rest, &Vj, &Vk, offset);
     return true;
 }
 
@@ -53,6 +69,12 @@ void resStation::reserv_automat()
         at_rising_edge(&lock, next_vdd);
         if (busy)
         {
+            if (code == SD)
+            {
+                ROBEntry *R = CPU_ROB->get_entry(dest);
+                R->finished = true;
+                R->output.wBack = sys_clk.get_prog_cyc();
+            }
             if (fCDB.get_source() == dest)
             {
                 msg_log("WriteBack, ", 3);
@@ -85,7 +107,7 @@ void resStation::reserv_automat()
                 Vk.f = sub? -Vk.f : Vk.f;
             else
                 Vk.i = sub? -Vk.i : Vk.i;
-            prnt_Q->enQ(dest, &rest, &Vj, &Vk);
+            prnt_Q->enQ(code, retType, dest, &rest, &Vj, &Vk, offset);
         }
     }
 }

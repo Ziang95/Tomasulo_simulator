@@ -7,6 +7,7 @@ pthread_t iss_unit;
 vector<intAdder*> iAdder;
 vector<flpAdder*> fAdder;
 vector<flpMtplr*> fMtplr;
+vector<ldsdUnit*> lsUnit;
 
 
 FU_CDB fCDB = FU_CDB();
@@ -153,10 +154,10 @@ int main()
 {
     if (!read_config_instrs("./inputTest.txt"))
         return -1;
-    // init_main_mem();
     init_CPU_ROB();
     init_FUs();
     init_FU_CDB();
+    init_main_mem();
     init_issue_unit();
     msg_log("Threads count is: "+to_string(clk_wait_list.size()), 0);
     msg_log("instr buffer size is: " + to_string(instr_Q->size), 3);

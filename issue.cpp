@@ -6,6 +6,7 @@ extern vector<int*> clk_wait_list;
 extern vector<intAdder*> iAdder;
 extern vector<intAdder*> fAdder;
 extern vector<intAdder*> fMtplr;
+extern vector<ldsdUnit*> lsUnit;
 extern registor reg;
 extern ROB* CPU_ROB;
 extern unordered_map <string, int> RAT;
@@ -75,7 +76,7 @@ void *issue_automat(void *arg)
                     }
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
-                    avai->fill_rs(dest, Qj, Qk, &i_Vj, &i_Vk, tmp->code == SUB);
+                    avai->fill_rs(dest, Qj, Qk, &i_Vj, &i_Vk, tmp->offset, tmp->code == SUB);
                 }
                 break;
             }
@@ -116,7 +117,7 @@ void *issue_automat(void *arg)
                     }
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
-                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &f_Vk, tmp->code == SUB_D);
+                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &f_Vk, tmp->offset, tmp->code == SUB_D);
                 }
                 break;
             }
@@ -155,7 +156,90 @@ void *issue_automat(void *arg)
                     }
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
-                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &f_Vk, tmp->code == SUB_D);
+                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &f_Vk, tmp->offset, tmp->code == SUB_D);
+                }
+                break;
+            }
+            case LD:
+            {
+                resStation *avai = nullptr;
+                for (int i = 0; i < lsUnit.size(); i++)
+                {
+                    for (int j = 0; j < (*lsUnit[i]).rs.size(); j++)
+                    {
+                        if ((*lsUnit[i]).rs[j]->get_state() == false)
+                            avai = (*lsUnit[i]).rs[j];
+                    }
+                }
+                if (avai)
+                {
+                    auto found_j = RAT.find(tmp->oprnd1);
+                    if (found_j != RAT.end())
+                        Qj = found_j->second;
+                    else
+                        reg.get(tmp->oprnd1, &f_Vj);
+                    int dest;
+                    try
+                    {
+                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest);
+                    }
+                    catch(const int e)
+                    {
+                        err_log("ROB is full");
+                        break;
+                    }
+                    instr_Q->ptr_advance();
+                    RAT[tmp->dest] = dest;
+                    if (tmp->dest[0] == 'R')
+                        avai->set_ret_type(INTGR);
+                    else
+                        avai->set_ret_type(FLTP);
+                    avai->set_code(LD);
+                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &i_Vk, tmp->offset, tmp->code == SUB_D);
+                }
+                break;
+            }
+            case SD:
+            {
+                resStation *avai = nullptr;
+                for (int i = 0; i < lsUnit.size(); i++)
+                {
+                    for (int j = 0; j < (*lsUnit[i]).rs.size(); j++)
+                    {
+                        if ((*lsUnit[i]).rs[j]->get_state() == false)
+                            avai = (*lsUnit[i]).rs[j];
+                    }
+                }
+                if (avai)
+                {
+                    auto found_j = RAT.find(tmp->oprnd1);
+                    auto found_k = RAT.find(tmp->dest);
+                    if (found_j != RAT.end())
+                        Qj = found_j->second;
+                    else
+                        reg.get(tmp->oprnd1, &i_Vj);
+                    if (found_k != RAT.end())
+                        Qj = found_k->second;
+                    else
+                        reg.get(tmp->dest, &f_Vk);
+                    int dest;
+                    try
+                    {
+                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest);
+                    }
+                    catch(const int e)
+                    {
+                        err_log("ROB is full");
+                        break;
+                    }
+                    instr_Q->ptr_advance();
+                    RAT[tmp->dest] = dest;
+                    if (tmp->dest[0] == 'R')
+                        avai->set_ret_type(INTGR);
+                    else
+                        avai->set_ret_type(FLTP);
+                    avai->set_code(SD);
+                    avai->fill_rs(dest, Qj, Qk, &i_Vj, &f_Vk, tmp->offset, tmp->code == SUB_D);
                 }
                 break;
             }

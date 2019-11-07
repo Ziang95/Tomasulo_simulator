@@ -17,17 +17,29 @@ class resStation
         int Qk;
         memCell Vj;
         memCell Vk;
+        int offset;
         bool Rj;
         bool Rk;
         bool sub;
     public:
+        opCode code;
         const valType type;
+        valType retType;
         pthread_t handle;
         int next_vdd;
         FU_Q *prnt_Q;
         resStation(FU_Q *Q, valType t);
-        bool fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk, bool _sub);
+        void set_code(opCode c);
+        void set_ret_type(valType rt);
+        void set_rest(memCell res);
+        bool fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk, int _offset, bool _sub);
         bool get_state();
+        void reserv_automat();
+};
+
+class ldRes : resStation
+{
+    public:
         void reserv_automat();
 };
 

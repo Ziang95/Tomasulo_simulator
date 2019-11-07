@@ -5,9 +5,11 @@ extern clk_tick sys_clk;
 extern FU_CDB fCDB;
 extern vector<int*> clk_wait_list;
 extern ROB *CPU_ROB;
+extern memory main_mem;
 extern vector<intAdder*> iAdder;
 extern vector<flpAdder*> fAdder;
 extern vector<flpMtplr*> fMtplr;
+extern vector<ldsdUnit*> lsUnit;
 
 FU_CDB::FU_CDB()
 {
@@ -82,7 +84,7 @@ FU_Q::FU_Q()
     Q_lock = PTHREAD_MUTEX_INITIALIZER;
 }
 
-const FU_QEntry* FU_Q::enQ(int d, void *r, void *op1, void *op2)
+const FU_QEntry* FU_Q::enQ(opCode c, valType rt, int d, void *r, void *op1, void *op2, int offst)
 {
     pthread_mutex_lock(&Q_lock);
     if ((rear+1)%Q_LEN == front)
@@ -92,10 +94,13 @@ const FU_QEntry* FU_Q::enQ(int d, void *r, void *op1, void *op2)
     }
     int index = rear;
     rear = (++rear)%Q_LEN;
+    queue[index].code = c;
+    queue[index].rtType = rt;
     queue[index].dest = d;
     queue[index].res = r;
     queue[index].oprnd1 = op1;
     queue[index].oprnd2 = op2;
+    queue[index].offset = offst;
     queue[index].done = false;
     pthread_mutex_unlock(&Q_lock);
     return &queue[index];
@@ -302,6 +307,79 @@ void flpMtplr::FU_automate()
     }
 }
 
+ldsdUnit::ldsdUnit()
+{
+    next_vdd = 0;
+    task.done = true;
+    for (int i = 0; i<CPU_cfg->ld_str->rs_num; i++)
+    {
+        auto tmp = new resStation(&queue, INTGR);
+        clk_wait_list.push_back(&tmp->next_vdd);
+        pthread_create(&tmp->handle, NULL, &rs_thread_container, tmp);
+        rs.push_back(tmp);
+    }
+}
+
+ldsdUnit::~ldsdUnit()
+{
+    for (auto &p : rs)
+    {
+        delete p;
+        p = nullptr;
+    }
+}
+
+void ldsdUnit::FU_automate()
+{
+    mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    while (true)
+    {
+        at_rising_edge(&lock, next_vdd);
+        if (task.done)
+        {
+            auto newTask = queue.deQ();
+            if (newTask != nullptr)
+            {
+                task.code = newTask->code;
+                task.rtType = newTask->rtType;
+                task.dest = newTask->dest;
+                task.oprnd1 = newTask->oprnd1;
+                task.oprnd2 = newTask->oprnd2;
+                task.offset = newTask->offset;
+                task.res = newTask->res;
+                task.done = false;
+            }
+        }
+        if (!task.done)
+        {
+            ROBEntry *R = CPU_ROB->get_entry(task.dest);
+            R->output.exe = sys_clk.get_prog_cyc();
+            for (int i = 0; ;i++)
+            {
+                msg_log("Calculating address "+to_string(*(int*)task.oprnd1)+" + "+to_string(task.offset), 3);
+                if (i == CPU_cfg->ld_str->exe_time - 1)
+                {
+                    int addr = *(int*)task.oprnd1 + task.offset;
+                    at_falling_edge(&lock, next_vdd);
+                    try
+                    {
+                        main_mem.enQ(task.dest, task.code, task.rtType, addr, task.oprnd2);
+                    }
+                    catch(const int e)
+                    {
+                        err_log("Exception = "+to_string(e));
+                    }
+                    task.done = true;
+                    break;
+                }
+                at_falling_edge(&lock, next_vdd);
+                at_rising_edge(&lock, next_vdd);
+            }
+        }
+        at_falling_edge(&lock, next_vdd);
+    }
+}
+
 void* intAdder_thread_container(void *arg)
 {
     auto p = (intAdder*) arg;
@@ -323,6 +401,13 @@ void* flpMlptr_thread_container(void *arg)
     return nullptr;
 }
 
+void* ldsdUnit_thread_container(void *arg)
+{
+    auto p = (ldsdUnit*) arg;
+    p->FU_automate();
+    return nullptr;
+}
+
 void init_FUs()
 {
     if (iAdder.size())
@@ -334,9 +419,13 @@ void init_FUs()
     if (fMtplr.size())
         for (auto &p : fMtplr)
             delete p;
+    if (lsUnit.size())
+        for (auto &p : lsUnit)
+            delete p;
     iAdder = {};
     fAdder = {};
     fMtplr = {};
+    lsUnit = {};
     for (int i = 0; i<CPU_cfg->int_add->fu_num; i++)
     {
         auto tmp = new intAdder();
@@ -357,5 +446,12 @@ void init_FUs()
         clk_wait_list.push_back(&tmp->next_vdd);
         pthread_create(&tmp->handle, NULL, &flpMlptr_thread_container, tmp);
         fMtplr.push_back(tmp);
+    }
+    for (int i = 0; i<CPU_cfg->ld_str->fu_num; i++)
+    {
+        auto tmp = new ldsdUnit();
+        clk_wait_list.push_back(&tmp->next_vdd);
+        pthread_create(&tmp->handle, NULL, &ldsdUnit_thread_container, tmp);
+        lsUnit.push_back(tmp);
     }
 }

@@ -3,6 +3,7 @@
 extern clk_tick sys_clk;
 extern memory main_mem;
 extern config *CPU_cfg;
+extern FU_CDB fCDB;
 extern vector<int*> clk_wait_list;
 extern ROB *CPU_ROB;
 
@@ -14,10 +15,6 @@ memory::memory(int sz)
     front = rear = 0;
     mem_CDB.source = -1;
     Q_lock = PTHREAD_MUTEX_INITIALIZER;
-    for (auto c: LSQ)
-    {
-        c.token = PTHREAD_COND_INITIALIZER;
-    }
 }
 
 memory::~memory()
@@ -28,6 +25,16 @@ memory::~memory()
 bool memory::store(QEntry& entry) //This function is designed with "being called at rising edge" in mind
 {
     mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    ROBEntry *R = CPU_ROB->get_entry(entry.rob_i);
+    while (true)
+    {
+        if (CPU_ROB->get_front() == entry.rob_i)
+            break;
+        at_falling_edge(&lock, next_vdd);
+        if (!R->finished)
+            return true;
+        at_rising_edge(&lock, next_vdd);
+    }
     for (int i = 0; ; i++)
     {
         msg_log("Storing value to Addr="+to_string(entry.addr), 3);
@@ -45,7 +52,6 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
     mem_CDB.value = buf[entry.addr];
     entry.done = true;
     msg_log("Value stored, Val="+to_string(entry.type == FLTP?(*(float*)entry.val):(*(int*)entry.val)), 2);
-    pthread_cond_broadcast(&(entry.token));
     return true;
 }
 
@@ -72,17 +78,17 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
             at_rising_edge(&lock, next_vdd);
         }
         if (entry.type == FLTP)
-            *((float*)entry.val) = buf[entry.addr].f;
+            *(float*)entry.val = buf[entry.addr].f;
         else
-            *((int*)entry.val) = buf[entry.addr].i;
+            *(int*)entry.val = buf[entry.addr].i;
     }
+    fCDB.enQ(entry.type, &entry.val, entry.rob_i);
     entry.done = true;
     msg_log("Value loaded, Val="+to_string(entry.type == FLTP?(*(float*)entry.val):(*(int*)entry.val)), 2);
-    pthread_cond_broadcast(&entry.token);
     return true;
 }
 
- const QEntry* memory::enQ(opCode code, valType type, int addr, void* val)
+ const QEntry* memory::enQ(int rbi, opCode code, valType type, int addr, void* val)
 {
     if (code != SD && code != LD)
         throw -1;
@@ -96,6 +102,7 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
     }
     int index = rear;
     rear = (++rear)%Q_LEN;
+    LSQ[index].rob_i = rbi;
     LSQ[index].addr = addr;
     LSQ[index].code = code;
     LSQ[index].type = type;

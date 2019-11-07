@@ -31,6 +31,11 @@ ROBEntry *ROB::get_entry(int index)
     return &buf[index];
 }
 
+int ROB::get_front()
+{
+    return front;
+}
+
 int ROB::add_entry(string n, string d)
 {
     if ((rear+1)%size == front)
@@ -61,9 +66,11 @@ void ROB::ROB_automate()
                 RAT.erase(got);
             reg.set(rName, &buf[front].value);
             //out put table;
+            at_falling_edge(&lock, next_vdd);
             front = (++front)%size;
         }
-        at_falling_edge(&lock, next_vdd);
+        else
+            at_falling_edge(&lock, next_vdd);
     }
 }
 
