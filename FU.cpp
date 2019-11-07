@@ -30,12 +30,20 @@ bool FU_CDB::enQ(valType t, void *v, int s)
     }
     int index = rear;
     rear = (++rear)%Q_LEN;
-    queue[index].type = t;
+    int pos = 0;
+    for (; (front + pos)%Q_LEN != index && queue[(front + pos)%Q_LEN].source < s; pos++);
+    for (int i = index; (Q_LEN + i)%Q_LEN != (front + pos)%Q_LEN; i--)
+    {
+        queue[(Q_LEN+i)%Q_LEN].source = queue[(Q_LEN+i-1)%Q_LEN].source;
+        queue[(Q_LEN+i)%Q_LEN].value = queue[(Q_LEN+i-1)%Q_LEN].value;
+        queue[(Q_LEN+i)%Q_LEN].type = queue[(Q_LEN+i-1)%Q_LEN].type;
+    }
+    queue[(front+pos)%Q_LEN].type = t;
     if (t == INTGR)
-        queue[index].value.i = *(int*)v;
+        queue[(front+pos)%Q_LEN].value.i = *(int*)v;
     else
-        queue[index].value.f = *(float*)v;
-    queue[index].source = s;
+        queue[(front+pos)%Q_LEN].value.f = *(float*)v;
+    queue[(front+pos)%Q_LEN].source = s;
     pthread_mutex_unlock(&Q_lock);
     return true;
 }

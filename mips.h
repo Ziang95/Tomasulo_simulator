@@ -22,6 +22,7 @@ typedef pthread_mutex_t mutex_t;
 #include "registor.h"
 #include "ROB.h"
 #include "FU.h"
+#include "output.h"
 #include "issue.h"
 
 using namespace std;
@@ -31,6 +32,7 @@ class clk_tick
     private:
         bool vdd;                   //Simulates the voltage drain-drain
         bool prog_started;          //Indicates whether the program has started
+        bool prog_ended;
         int prog_cyc;               //Records the current cycle of program, 0 indicates the program hasn't started
     public:
         pthread_t handle;           //The handle of the thread running oscillator()
@@ -40,6 +42,8 @@ class clk_tick
         bool get_vdd();             //Get the current clock vdd
         void reset_prog_cyc();      //Reset program cycle to 0
         int get_prog_cyc();         //Get the current program cycle.
+        bool get_prog_ended();
+        void end_prog();
         bool oscillator(int freq);  //This function oscillates [clk], [freq] is the frequency of clock when no component is registered
 };
 

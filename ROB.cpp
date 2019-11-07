@@ -1,9 +1,11 @@
 #include "ROB.h"
 
 extern config *CPU_cfg;
+extern instr_queue *instr_Q;
 extern vector<int*> clk_wait_list;
 extern clk_tick sys_clk;
 extern ROB* CPU_ROB;
+extern vector<string> CPU_output_Q;
 extern unordered_map<string, int> RAT;
 extern registor reg;
 
@@ -11,6 +13,11 @@ ROB::ROB(int s):size(s)
 {
     next_vdd = 0;
     buf = new ROBEntry[s];
+    for (int i = 0; i<s; i++)
+    {
+        buf[i].output.mem = -1;
+        buf[i].output.wBack = -1;
+    }
     front = rear = 0;
 }
 
@@ -65,12 +72,16 @@ void ROB::ROB_automate()
             if (got != RAT.end() && got->second == front)
                 RAT.erase(got);
             reg.set(rName, &buf[front].value);
-            //out put table;
+            instr_timeline_output(&buf[front]);
             at_falling_edge(&lock, next_vdd);
             front = (++front)%size;
         }
         else
+        {
+            if (front == rear && instr_Q->finished())
+                sys_clk.end_prog();
             at_falling_edge(&lock, next_vdd);
+        }
     }
 }
 

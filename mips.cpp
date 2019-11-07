@@ -17,6 +17,7 @@ clk_tick sys_clk = clk_tick();
 vector<int*> clk_wait_list = {};
 memory main_mem = memory(MEM_LEN);
 
+vector<string> CPU_output_Q = {};
 
 static mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
 static mutex_t cerr_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -43,6 +44,16 @@ void clk_tick::reset_prog_cyc()
 int clk_tick::get_prog_cyc()
 {
     return prog_cyc;
+}
+
+bool clk_tick::get_prog_ended()
+{
+    return prog_ended;
+}
+
+void clk_tick::end_prog()
+{
+    prog_ended = true;
 }
 
 int all_unit_ready_for_one()
@@ -159,6 +170,7 @@ int main()
     init_FU_CDB();
     init_main_mem();
     init_issue_unit();
+    init_output_unit();
     msg_log("Threads count is: "+to_string(clk_wait_list.size()), 0);
     msg_log("instr buffer size is: " + to_string(instr_Q->size), 3);
     start_sys_clk();

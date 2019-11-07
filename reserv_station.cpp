@@ -73,7 +73,7 @@ void resStation::reserv_automat()
             {
                 ROBEntry *R = CPU_ROB->get_entry(dest);
                 R->finished = true;
-                R->output.wBack = sys_clk.get_prog_cyc();
+                // R->output.wBack = sys_clk.get_prog_cyc();
             }
             if (fCDB.get_source() == dest)
             {

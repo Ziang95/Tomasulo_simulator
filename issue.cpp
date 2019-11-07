@@ -50,19 +50,36 @@ void *issue_automat(void *arg)
                     auto found_j = RAT.find(tmp->oprnd1);
                     auto found_k = RAT.find(tmp->oprnd2);
                     if (found_j != RAT.end())
+                    {
                         Qj = found_j->second;
+                        ROBEntry *R = CPU_ROB->get_entry(Qj);
+                        if (R->finished)
+                        {
+                            i_Vj = R->value.i;
+                            Qj = -1;
+                        }
+                    }
                     else
                         reg.get(tmp->oprnd1, &i_Vj);
+
                     if (tmp->code == ADDI)
                         i_Vk = tmp->imdt;
                     else
                     {
                         if (found_k != RAT.end())
+                        {
                             Qk = found_k->second;
+                            ROBEntry *R = CPU_ROB->get_entry(Qk);
+                            if (R->finished)
+                            {
+                                i_Vk = R->value.i;
+                                Qk = -1;
+                            }
+                        }
                         else
                             reg.get(tmp->oprnd2, &i_Vk);
-                        if (tmp->code == SUB)
-                            i_Vk = - i_Vk;
+                        // if (tmp->code == SUB)
+                        //     i_Vk = - i_Vk;
                     }
                     int dest;
                     try
@@ -103,8 +120,8 @@ void *issue_automat(void *arg)
                         Qk = found_k->second;
                     else
                         reg.get(tmp->oprnd2, &f_Vk);
-                    if (tmp->code == SUB_D)
-                        f_Vk = - f_Vk;
+                    // if (tmp->code == SUB_D)
+                    //     f_Vk = - f_Vk;
                     int dest;
                     try
                     {
@@ -156,7 +173,7 @@ void *issue_automat(void *arg)
                     }
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
-                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &f_Vk, tmp->offset, tmp->code == SUB_D);
+                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &f_Vk, tmp->offset, false);
                 }
                 break;
             }
@@ -195,7 +212,7 @@ void *issue_automat(void *arg)
                     else
                         avai->set_ret_type(FLTP);
                     avai->set_code(LD);
-                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &i_Vk, tmp->offset, tmp->code == SUB_D);
+                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &i_Vk, tmp->offset, false);
                 }
                 break;
             }
@@ -239,7 +256,7 @@ void *issue_automat(void *arg)
                     else
                         avai->set_ret_type(FLTP);
                     avai->set_code(SD);
-                    avai->fill_rs(dest, Qj, Qk, &i_Vj, &f_Vk, tmp->offset, tmp->code == SUB_D);
+                    avai->fill_rs(dest, Qj, Qk, &i_Vj, &f_Vk, tmp->offset, false);
                 }
                 break;
             }

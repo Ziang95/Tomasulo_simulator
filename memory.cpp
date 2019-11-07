@@ -10,6 +10,7 @@ extern ROB *CPU_ROB;
 memory::memory(int sz)
 {
     buf = new memCell[sz];
+    memset(buf, 0, sz);
     size = sz;
     next_vdd = 0;
     front = rear = 0;
@@ -35,12 +36,13 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
             return true;
         at_rising_edge(&lock, next_vdd);
     }
+    R->output.mem = sys_clk.get_prog_cyc();
     for (int i = 0; ; i++)
     {
         msg_log("Storing value to Addr="+to_string(entry.addr), 3);
-        at_falling_edge(&lock, next_vdd);
         if (i == CPU_cfg->ld_str->mem_time - 1)
             break;
+        at_falling_edge(&lock, next_vdd);
         at_rising_edge(&lock, next_vdd);
     }
     if (entry.type == FLTP)
@@ -51,6 +53,7 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
     mem_CDB.source = entry.addr;
     mem_CDB.value = buf[entry.addr];
     entry.done = true;
+    at_falling_edge(&lock, next_vdd);
     msg_log("Value stored, Val="+to_string(entry.type == FLTP?(*(float*)entry.val):(*(int*)entry.val)), 2);
     return true;
 }
@@ -58,6 +61,8 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
 bool memory::load(QEntry& entry) //This function is designed with "being called at rising edge" in mind
 {
     mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    ROBEntry *R = CPU_ROB->get_entry(entry.rob_i);
+    R->output.mem = sys_clk.get_prog_cyc();
     if (mem_CDB.source == entry.addr)
     {
         msg_log("Forward store found, forwarding, Addr="+to_string(mem_CDB.source), 3);
@@ -72,9 +77,9 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
         for (int i = 0; ; i++)
         {
             msg_log("Loading value from Addr="+to_string(entry.addr), 3);
-            at_falling_edge(&lock, next_vdd);
             if (i == CPU_cfg->ld_str->mem_time - 1)
                 break;
+            at_falling_edge(&lock, next_vdd);
             at_rising_edge(&lock, next_vdd);
         }
         if (entry.type == FLTP)
@@ -84,6 +89,7 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
     }
     fCDB.enQ(entry.type, &entry.val, entry.rob_i);
     entry.done = true;
+    at_falling_edge(&lock, next_vdd);
     msg_log("Value loaded, Val="+to_string(entry.type == FLTP?(*(float*)entry.val):(*(int*)entry.val)), 2);
     return true;
 }
