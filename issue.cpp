@@ -12,7 +12,39 @@ extern ROB* CPU_ROB;
 extern unordered_map <string, int> RAT;
 extern instr_queue *instr_Q;
 
-static int issue_next_vdd = 0;
+static int next_vdd = 0;
+
+void get_int_reg_or_rob(string regName, int *Q, int *V)
+{
+    auto found = RAT.find(regName);
+    if (found != RAT.end())
+    {
+        int tmp = found->second;
+        ROBEntry *R = CPU_ROB->get_entry(tmp);
+        if (R->finished)
+            *V = R->value.i;
+        else
+            *Q = tmp;
+    }
+    else
+        reg.get(regName, V);
+}
+
+void get_flp_reg_or_rob(string regName, int *Q, float *V)
+{
+    auto found = RAT.find(regName);
+    if (found != RAT.end())
+    {
+        int tmp = found->second;
+        ROBEntry *R = CPU_ROB->get_entry(tmp);
+        if (R->finished)
+            *V = R->value.f;
+        else
+            *Q = tmp;
+    }
+    else
+        reg.get(regName, V);
+}
 
 void *issue_automat(void *arg)
 {
@@ -23,12 +55,12 @@ void *issue_automat(void *arg)
     int Qj, Qk;
     while (true)
     {
-        at_rising_edge(&lock, issue_next_vdd);
+        at_rising_edge(&lock, next_vdd);
         tmp = nullptr;
         Qj = Qk = -1;
         if (!instr_Q->finished())
             tmp = instr_Q->getInstr();
-        at_falling_edge(&lock, issue_next_vdd);
+        at_falling_edge(&lock, next_vdd);
         if (tmp)
         {
             msg_log("Issuing code: " + tmp->name, 3);
@@ -43,38 +75,11 @@ void *issue_automat(void *arg)
                             avai = (*iAdder[i]).rs[j];
                 if (avai)
                 {
-                    auto found_j = RAT.find(tmp->oprnd1);
-                    auto found_k = RAT.find(tmp->oprnd2);
-                    if (found_j != RAT.end())
-                    {
-                        Qj = found_j->second;
-                        ROBEntry *R = CPU_ROB->get_entry(Qj);
-                        if (R->finished)
-                        {
-                            i_Vj = R->value.i;
-                            Qj = -1;
-                        }
-                    }
-                    else
-                        reg.get(tmp->oprnd1, &i_Vj);
-
+                    get_int_reg_or_rob(tmp->oprnd1, &Qj, &i_Vj);
                     if (tmp->code == ADDI)
                         i_Vk = tmp->imdt;
                     else
-                    {
-                        if (found_k != RAT.end())
-                        {
-                            Qk = found_k->second;
-                            ROBEntry *R = CPU_ROB->get_entry(Qk);
-                            if (R->finished)
-                            {
-                                i_Vk = R->value.i;
-                                Qk = -1;
-                            }
-                        }
-                        else
-                            reg.get(tmp->oprnd2, &i_Vk);
-                    }
+                        get_int_reg_or_rob(tmp->oprnd2, &Qk, &i_Vk);
                     int dest;
                     try
                     {
@@ -99,32 +104,8 @@ void *issue_automat(void *arg)
                             avai = (*fAdder[i]).rs[j];
                 if (avai)
                 {
-                    auto found_j = RAT.find(tmp->oprnd1);
-                    auto found_k = RAT.find(tmp->oprnd2);
-                    if (found_j != RAT.end())
-                    {
-                        Qj = found_j->second;
-                        ROBEntry *R = CPU_ROB->get_entry(Qj);
-                        if (R->finished)
-                        {
-                            f_Vj = R->value.f;
-                            Qj = -1;
-                        }
-                    }
-                    else
-                        reg.get(tmp->oprnd1, &f_Vj);
-                    if (found_k != RAT.end())
-                    {
-                        Qk = found_k->second;
-                        ROBEntry *R = CPU_ROB->get_entry(Qk);
-                        if (R->finished)
-                        {
-                            f_Vk = R->value.f;
-                            Qk = -1;
-                        }
-                    }
-                    else
-                        reg.get(tmp->oprnd2, &f_Vk);
+                    get_flp_reg_or_rob(tmp->oprnd1, &Qj, &f_Vj);
+                    get_flp_reg_or_rob(tmp->oprnd2, &Qk, &f_Vk);
                     int dest;
                     try
                     {
@@ -149,32 +130,8 @@ void *issue_automat(void *arg)
                             avai = (*fMtplr[i]).rs[j];
                 if (avai)
                 {
-                    auto found_j = RAT.find(tmp->oprnd1);
-                    auto found_k = RAT.find(tmp->oprnd2);
-                    if (found_j != RAT.end())
-                    {
-                        Qj = found_j->second;
-                        ROBEntry *R = CPU_ROB->get_entry(Qj);
-                        if (R->finished)
-                        {
-                            f_Vj = R->value.f;
-                            Qj = -1;
-                        }
-                    }
-                    else
-                        reg.get(tmp->oprnd1, &f_Vj);
-                    if (found_k != RAT.end())
-                    {
-                        Qk = found_k->second;
-                        ROBEntry *R = CPU_ROB->get_entry(Qk);
-                        if (R->finished)
-                        {
-                            f_Vk = R->value.f;
-                            Qk = -1;
-                        }
-                    }
-                    else
-                        reg.get(tmp->oprnd2, &f_Vk);
+                    get_flp_reg_or_rob(tmp->oprnd1, &Qj, &f_Vj);
+                    get_flp_reg_or_rob(tmp->oprnd2, &Qk, &f_Vk);
                     int dest;
                     try
                     {
@@ -199,19 +156,7 @@ void *issue_automat(void *arg)
                             avai = (*lsUnit[i]).rs[j];
                 if (avai)
                 {
-                    auto found_j = RAT.find(tmp->oprnd1);
-                    if (found_j != RAT.end())
-                    {
-                        Qj = found_j->second;
-                        ROBEntry *R = CPU_ROB->get_entry(Qj);
-                        if (R->finished)
-                        {
-                            i_Vj = R->value.i;
-                            Qj = -1;
-                        }
-                    }
-                    else
-                        reg.get(tmp->oprnd1, &i_Vj);
+                    get_int_reg_or_rob(tmp->oprnd1, &Qj, &i_Vj);
                     int dest;
                     try
                     {
@@ -298,6 +243,6 @@ void *issue_automat(void *arg)
 
 void init_issue_unit()
 {
-    clk_wait_list.push_back(&issue_next_vdd);
+    clk_wait_list.push_back(&next_vdd);
     pthread_create(&iss_unit, NULL, &issue_automat, NULL);
 }
