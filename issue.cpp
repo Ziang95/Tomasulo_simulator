@@ -32,19 +32,15 @@ void *issue_automat(void *arg)
         if (tmp)
         {
             msg_log("Issuing code: " + tmp->name, 3);
+            resStation *avai = nullptr;
             switch (tmp->code)
             {
             case ADD: case ADDI: case SUB:
             {
-                resStation *avai = nullptr;
                 for (int i = 0; i < iAdder.size(); i++)
-                {
                     for (int j = 0; j < (*iAdder[i]).rs.size(); j++)
-                    {
                         if ((*iAdder[i]).rs[j]->get_state() == false)
                             avai = (*iAdder[i]).rs[j];
-                    }
-                }
                 if (avai)
                 {
                     auto found_j = RAT.find(tmp->oprnd1);
@@ -78,8 +74,6 @@ void *issue_automat(void *arg)
                         }
                         else
                             reg.get(tmp->oprnd2, &i_Vk);
-                        // if (tmp->code == SUB)
-                        //     i_Vk = - i_Vk;
                     }
                     int dest;
                     try
@@ -99,29 +93,38 @@ void *issue_automat(void *arg)
             }
             case ADD_D: case SUB_D:
             {
-                resStation *avai = nullptr;
                 for (int i = 0; i < fAdder.size(); i++)
-                {
                     for (int j = 0; j < (*fAdder[i]).rs.size(); j++)
-                    {
                         if ((*fAdder[i]).rs[j]->get_state() == false)
                             avai = (*fAdder[i]).rs[j];
-                    }
-                }
                 if (avai)
                 {
                     auto found_j = RAT.find(tmp->oprnd1);
                     auto found_k = RAT.find(tmp->oprnd2);
                     if (found_j != RAT.end())
+                    {
                         Qj = found_j->second;
+                        ROBEntry *R = CPU_ROB->get_entry(Qj);
+                        if (R->finished)
+                        {
+                            f_Vj = R->value.f;
+                            Qj = -1;
+                        }
+                    }
                     else
                         reg.get(tmp->oprnd1, &f_Vj);
                     if (found_k != RAT.end())
+                    {
                         Qk = found_k->second;
+                        ROBEntry *R = CPU_ROB->get_entry(Qk);
+                        if (R->finished)
+                        {
+                            f_Vk = R->value.f;
+                            Qk = -1;
+                        }
+                    }
                     else
                         reg.get(tmp->oprnd2, &f_Vk);
-                    // if (tmp->code == SUB_D)
-                    //     f_Vk = - f_Vk;
                     int dest;
                     try
                     {
@@ -140,25 +143,36 @@ void *issue_automat(void *arg)
             }
             case MUL_D:
             {
-                resStation *avai = nullptr;
                 for (int i = 0; i < fMtplr.size(); i++)
-                {
                     for (int j = 0; j < (*fMtplr[i]).rs.size(); j++)
-                    {
                         if ((*fMtplr[i]).rs[j]->get_state() == false)
                             avai = (*fMtplr[i]).rs[j];
-                    }
-                }
                 if (avai)
                 {
                     auto found_j = RAT.find(tmp->oprnd1);
                     auto found_k = RAT.find(tmp->oprnd2);
                     if (found_j != RAT.end())
+                    {
                         Qj = found_j->second;
+                        ROBEntry *R = CPU_ROB->get_entry(Qj);
+                        if (R->finished)
+                        {
+                            f_Vj = R->value.f;
+                            Qj = -1;
+                        }
+                    }
                     else
                         reg.get(tmp->oprnd1, &f_Vj);
                     if (found_k != RAT.end())
+                    {
                         Qk = found_k->second;
+                        ROBEntry *R = CPU_ROB->get_entry(Qk);
+                        if (R->finished)
+                        {
+                            f_Vk = R->value.f;
+                            Qk = -1;
+                        }
+                    }
                     else
                         reg.get(tmp->oprnd2, &f_Vk);
                     int dest;
@@ -179,22 +193,25 @@ void *issue_automat(void *arg)
             }
             case LD:
             {
-                resStation *avai = nullptr;
                 for (int i = 0; i < lsUnit.size(); i++)
-                {
                     for (int j = 0; j < (*lsUnit[i]).rs.size(); j++)
-                    {
                         if ((*lsUnit[i]).rs[j]->get_state() == false)
                             avai = (*lsUnit[i]).rs[j];
-                    }
-                }
                 if (avai)
                 {
                     auto found_j = RAT.find(tmp->oprnd1);
                     if (found_j != RAT.end())
+                    {
                         Qj = found_j->second;
+                        ROBEntry *R = CPU_ROB->get_entry(Qj);
+                        if (R->finished)
+                        {
+                            i_Vj = R->value.i;
+                            Qj = -1;
+                        }
+                    }
                     else
-                        reg.get(tmp->oprnd1, &f_Vj);
+                        reg.get(tmp->oprnd1, &i_Vj);
                     int dest;
                     try
                     {
@@ -212,31 +229,42 @@ void *issue_automat(void *arg)
                     else
                         avai->set_ret_type(FLTP);
                     avai->set_code(LD);
-                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &i_Vk, tmp->offset, false);
+                    avai->fill_rs(dest, Qj, Qk, &i_Vj, &i_Vk, tmp->offset, false);
                 }
                 break;
             }
             case SD:
             {
-                resStation *avai = nullptr;
                 for (int i = 0; i < lsUnit.size(); i++)
-                {
                     for (int j = 0; j < (*lsUnit[i]).rs.size(); j++)
-                    {
                         if ((*lsUnit[i]).rs[j]->get_state() == false)
                             avai = (*lsUnit[i]).rs[j];
-                    }
-                }
                 if (avai)
                 {
                     auto found_j = RAT.find(tmp->oprnd1);
                     auto found_k = RAT.find(tmp->dest);
                     if (found_j != RAT.end())
+                    {
                         Qj = found_j->second;
+                        ROBEntry *R = CPU_ROB->get_entry(Qj);
+                        if (R->finished)
+                        {
+                            i_Vj = R->value.i;
+                            Qj = -1;
+                        }
+                    }
                     else
                         reg.get(tmp->oprnd1, &i_Vj);
                     if (found_k != RAT.end())
-                        Qj = found_k->second;
+                    {
+                        Qk = found_j->second;
+                        ROBEntry *R = CPU_ROB->get_entry(Qk);
+                        if (R->finished)
+                        {
+                            f_Vk = R->value.f;
+                            Qk = -1;
+                        }
+                    }
                     else
                         reg.get(tmp->dest, &f_Vk);
                     int dest;
