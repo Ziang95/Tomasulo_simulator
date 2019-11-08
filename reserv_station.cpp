@@ -1,6 +1,7 @@
 #include "reserv_station.h"
 #include "mips.h"
 
+extern config *CPU_cfg;
 extern clk_tick sys_clk;
 extern vector<int*> clk_wait_list;
 extern FU_CDB fCDB;
@@ -73,7 +74,6 @@ void resStation::reserv_automat()
             {
                 ROBEntry *R = CPU_ROB->get_entry(dest);
                 R->finished = true;
-                // R->output.wBack = sys_clk.get_prog_cyc();
             }
             if (fCDB.get_source() == dest)
             {
@@ -98,6 +98,7 @@ void resStation::reserv_automat()
                 }
             }
         }
+        
         at_falling_edge(&lock, next_vdd);
         if (busy && to_start && Rj && Rk)
         {

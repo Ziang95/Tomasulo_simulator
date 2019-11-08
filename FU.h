@@ -13,9 +13,9 @@ typedef struct FU_QEntry
     opCode code;
     valType rtType;
     int dest;
-    void *res;
-    void *oprnd1;
-    void *oprnd2;
+    memCell *res;
+    memCell *oprnd1;
+    memCell *oprnd2;
     int offset;
 }FU_QEntry;
 
@@ -47,7 +47,7 @@ class FU_Q
         mutex_t Q_lock;
     public:
         FU_Q();
-        const FU_QEntry* enQ(opCode c, valType rt, int d, void *r, void *op1, void *op2, int offst);
+        const FU_QEntry* enQ(opCode c, valType rt, int d, memCell *r, memCell *op1, memCell *op2, int offst);
         FU_QEntry* deQ();
 };
 
@@ -80,6 +80,9 @@ class intAdder : public functionUnit
 
 class flpAdder : public functionUnit
 {
+    private:
+        FU_QEntry *pLatency_Q;
+        void shift(FU_QEntry &in, FU_QEntry &out);
     public:
         flpAdder();
         ~flpAdder();
@@ -88,6 +91,9 @@ class flpAdder : public functionUnit
 
 class flpMtplr : public functionUnit
 {
+    private:
+        FU_QEntry *pLatency_Q;
+        void shift(FU_QEntry &in, FU_QEntry &out);
     public:
         flpMtplr();
         ~flpMtplr();

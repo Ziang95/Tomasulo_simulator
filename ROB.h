@@ -17,15 +17,26 @@ typedef struct timeLine
 
 #include "mips.h"
 
+class registor;
+
+class squashData
+{
+    public:
+        squashData();
+        registor *reg_backup;
+        unordered_map<string, int> RAT_backup;
+};
+
 class ROBEntry
 {
 public:
     bool finished;      // Ready to commit or not.
     string name;
-    string regName;        // Destination of the instruction (R1, R2, F1, F2)
+    string regName;     // Destination of the instruction (R1, R2, F1, F2)
     memCell value;      // Result of the instruction
     opCode code;        // Opcode of the operation.
     timeLine output;
+
 };
 
 class ROB

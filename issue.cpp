@@ -4,8 +4,8 @@ extern pthread_t iss_unit;
 extern clk_tick sys_clk;
 extern vector<int*> clk_wait_list;
 extern vector<intAdder*> iAdder;
-extern vector<intAdder*> fAdder;
-extern vector<intAdder*> fMtplr;
+extern vector<flpAdder*> fAdder;
+extern vector<flpMtplr*> fMtplr;
 extern vector<ldsdUnit*> lsUnit;
 extern registor reg;
 extern ROB* CPU_ROB;
@@ -49,7 +49,7 @@ void get_flp_reg_or_rob(string regName, int *Q, float *V)
 void *issue_automat(void *arg)
 {
     mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-    const instr *tmp;
+    const instr *tmp = nullptr;
     int i_Vj, i_Vk;
     float f_Vj, f_Vk;
     int Qj, Qk;

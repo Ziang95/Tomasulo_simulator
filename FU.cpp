@@ -92,7 +92,7 @@ FU_Q::FU_Q()
     Q_lock = PTHREAD_MUTEX_INITIALIZER;
 }
 
-const FU_QEntry* FU_Q::enQ(opCode c, valType rt, int d, void *r, void *op1, void *op2, int offst)
+const FU_QEntry* FU_Q::enQ(opCode c, valType rt, int d, memCell *r, memCell *op1, memCell *op2, int offst)
 {
     pthread_mutex_lock(&Q_lock);
     if ((rear+1)%Q_LEN == front)
@@ -161,13 +161,7 @@ void intAdder::FU_automate()
         {
             auto newTask = queue.deQ();
             if (newTask != nullptr)
-            {
-                task.dest = newTask->dest;
-                task.oprnd1 = newTask->oprnd1;
-                task.oprnd2 = newTask->oprnd2;
-                task.res = newTask->res;
-                task.done = false;
-            }
+                task = *newTask;
         }
         if (!task.done)
         {
@@ -175,10 +169,10 @@ void intAdder::FU_automate()
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
             {
-                msg_log("Calculating INT "+to_string(*(int*)task.oprnd1)+" + "+to_string(*(int*)task.oprnd2), 3);
+                msg_log("Calculating INT "+to_string(task.oprnd1->i)+" + "+to_string(task.oprnd2->i), 3);
                 if (i == CPU_cfg->int_add->exe_time - 1)
                 {
-                    *(int*)task.res = *(int*)task.oprnd1 + *(int*)task.oprnd2;
+                    task.res->i = task.oprnd1->i + task.oprnd2->i;
                     fCDB.enQ(INTGR, task.res, task.dest);
                     task.done = true;
                     break;
@@ -202,6 +196,14 @@ flpAdder::flpAdder()
         pthread_create(&tmp->handle, NULL, &rs_thread_container, tmp);
         rs.push_back(tmp);
     }
+    int latency = CPU_cfg->fp_add->exe_time - 1;
+    pLatency_Q = nullptr;
+    if (latency)
+    {
+        pLatency_Q = new FU_QEntry[latency];
+        for (int i = 0; i<latency; i++)
+            pLatency_Q[i].res = nullptr;
+    }
 }
 
 flpAdder::~flpAdder()
@@ -211,44 +213,44 @@ flpAdder::~flpAdder()
         delete p;
         p = nullptr;
     }
+    if (pLatency_Q)
+        delete pLatency_Q;
+}
+
+void flpAdder::shift(FU_QEntry &in, FU_QEntry &out)
+{
+    int size = CPU_cfg->fp_add->exe_time - 1;
+    if (!size)
+    {
+        out = in;
+        return;
+    }
+    out = pLatency_Q[size-1];
+    for (int i = size-1; i>0; i--)
+        pLatency_Q[i] = pLatency_Q[i-1];
+    pLatency_Q[0] = in;
 }
 
 void flpAdder::FU_automate()
 {
     mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    FU_QEntry shift_out;
     while (true)
     {
         at_rising_edge(&lock, next_vdd);
-        if (task.done)
+        task.res = nullptr;
+        auto newTask = queue.deQ();
+        if (newTask != nullptr)
         {
-            auto newTask = queue.deQ();
-            if (newTask != nullptr)
-            {
-                task.dest = newTask->dest;
-                task.oprnd1 = newTask->oprnd1;
-                task.oprnd2 = newTask->oprnd2;
-                task.res = newTask->res;
-                task.done = false;
-            }
-        }
-        if (!task.done)
-        {
+            task = *newTask;
             ROBEntry *R = CPU_ROB->get_entry(task.dest);
             R->output.exe = sys_clk.get_prog_cyc();
-            for (int i = 0; ;i++)
-            {
-                msg_log("Calculating FLP "+to_string(*(float*)task.oprnd1)+" + "+to_string(*(float*)task.oprnd2), 3);
-                if (i == CPU_cfg->fp_add->exe_time - 1)
-                {
-                    *(float*)task.res = *(float*)task.oprnd1 + *(float*)task.oprnd2;
-                    fCDB.enQ(FLTP, task.res, task.dest);
-                    task.done = true;
-                    break;
-                }
-                at_falling_edge(&lock, next_vdd);
-                at_rising_edge(&lock, next_vdd);
-            }
+            msg_log("Calculating FLP "+to_string(task.oprnd1->f)+" + "+to_string(task.oprnd2->f), 3);
+            task.res->f = task.oprnd1->f + task.oprnd2->f;
         }
+        shift(task, shift_out);
+        if (shift_out.res)
+            fCDB.enQ(FLTP, shift_out.res, shift_out.dest);
         at_falling_edge(&lock, next_vdd);
     }
 }
@@ -264,6 +266,14 @@ flpMtplr::flpMtplr()
         pthread_create(&tmp->handle, NULL, &rs_thread_container, tmp);
         rs.push_back(tmp);
     }
+    int latency = CPU_cfg->fp_mul->exe_time - 1;
+    pLatency_Q = nullptr;
+    if (latency)
+    {
+        pLatency_Q = new FU_QEntry[latency];
+        for (int i = 0; i<latency; i++)
+            pLatency_Q[i].res = nullptr;
+    }
 }
 
 flpMtplr::~flpMtplr()
@@ -273,44 +283,44 @@ flpMtplr::~flpMtplr()
         delete p;
         p = nullptr;
     }
+    if (pLatency_Q)
+        delete pLatency_Q;
+}
+
+void flpMtplr::shift(FU_QEntry &in, FU_QEntry &out)
+{
+    int size = CPU_cfg->fp_mul->exe_time - 1;
+    if (!size)
+    {
+        out = in;
+        return;
+    }
+    out = pLatency_Q[size-1];
+    for (int i = size-1; i>0; i--)
+        pLatency_Q[i] = pLatency_Q[i-1];
+    pLatency_Q[0] = in;
 }
 
 void flpMtplr::FU_automate()
 {
     mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    FU_QEntry shift_out;
     while (true)
     {
         at_rising_edge(&lock, next_vdd);
-        if (task.done)
+        task.res = nullptr;
+        auto newTask = queue.deQ();
+        if (newTask != nullptr)
         {
-            auto newTask = queue.deQ();
-            if (newTask != nullptr)
-            {
-                task.dest = newTask->dest;
-                task.oprnd1 = newTask->oprnd1;
-                task.oprnd2 = newTask->oprnd2;
-                task.res = newTask->res;
-                task.done = false;
-            }
-        }
-        if (!task.done)
-        {
+            task = *newTask;
             ROBEntry *R = CPU_ROB->get_entry(task.dest);
             R->output.exe = sys_clk.get_prog_cyc();
-            for (int i = 0; ;i++)
-            {
-                msg_log("Calculating FLP "+to_string(*(float*)task.oprnd1)+" X "+to_string(*(float*)task.oprnd2), 3);
-                if (i == CPU_cfg->fp_mul->exe_time - 1)
-                {
-                    *(float*)task.res = *(float*)task.oprnd1 * *(float*)task.oprnd2;
-                    fCDB.enQ(FLTP, task.res, task.dest);
-                    task.done = true;
-                    break;
-                }
-                at_falling_edge(&lock, next_vdd);
-                at_rising_edge(&lock, next_vdd);
-            }
+            msg_log("Calculating FLP "+to_string(task.oprnd1->f)+" X "+to_string(task.oprnd2->f), 3);
+            task.res->f = task.oprnd1->f * task.oprnd2->f;
         }
+        shift(task, shift_out);
+        if (shift_out.res)
+            fCDB.enQ(FLTP, shift_out.res, shift_out.dest);
         at_falling_edge(&lock, next_vdd);
     }
 }
@@ -347,16 +357,7 @@ void ldsdUnit::FU_automate()
         {
             auto newTask = queue.deQ();
             if (newTask != nullptr)
-            {
-                task.code = newTask->code;
-                task.rtType = newTask->rtType;
-                task.dest = newTask->dest;
-                task.oprnd1 = newTask->oprnd1;
-                task.oprnd2 = newTask->oprnd2;
-                task.offset = newTask->offset;
-                task.res = newTask->res;
-                task.done = false;
-            }
+                task = *newTask;
         }
         if (!task.done)
         {
@@ -369,14 +370,8 @@ void ldsdUnit::FU_automate()
                 {
                     int addr = *(int*)task.oprnd1 + task.offset;
                     at_falling_edge(&lock, next_vdd);
-                    try
-                    {
-                        main_mem.enQ(task.dest, task.code, task.rtType, addr, task.oprnd2);
-                    }
-                    catch(const int e)
-                    {
-                        err_log("Exception = "+to_string(e));
-                    }
+                    try {main_mem.enQ(task.dest, task.code, task.rtType, addr, task.oprnd2);}
+                    catch(const int e){err_log("Exception = "+to_string(e));}
                     task.done = true;
                     break;
                 }

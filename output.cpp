@@ -11,10 +11,12 @@ class ROBEntry;
 void instr_timeline_output(ROBEntry *R)
 {
     string t = R->name;
-    t += "\t\t" + to_string(R->output.issue);
+    if (t.size()/8 < 2)
+        t += "\t";
+    t += "\t" + to_string(R->output.issue);
     t += "\t" + to_string(R->output.exe);
-    t += "\t" + (R->output.mem > 0? to_string(R->output.mem):"#");
-    t += "\t" + (R->output.wBack > 0? to_string(R->output.wBack):"#");
+    t += "\t" + (R->output.mem > 0? to_string(R->output.mem):" ");
+    t += "\t" + (R->output.wBack > 0? to_string(R->output.wBack):" ");
     t += "\t" + to_string(R->output.commit);
     CPU_output_Q.push_back(t);
 }

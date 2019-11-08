@@ -119,6 +119,8 @@ bool clk_tick::oscillator(int freq)
         }
         vdd = 0;
         pthread_cond_broadcast(&vdd_0);
+        if (prog_ended)
+            return true;
     }
 }
 
@@ -166,7 +168,9 @@ int main()
     if (!read_config_instrs("./inputTest.txt"))
         return -1;
     init_CPU_ROB();
+    msg_log("Threads count is: "+to_string(clk_wait_list.size()), 0);
     init_FUs();
+    msg_log("Threads count is: "+to_string(clk_wait_list.size()), 0);
     init_FU_CDB();
     init_main_mem();
     init_issue_unit();
@@ -174,11 +178,5 @@ int main()
     msg_log("Threads count is: "+to_string(clk_wait_list.size()), 0);
     msg_log("instr buffer size is: " + to_string(instr_Q->size), 3);
     start_sys_clk();
-    // int i = 110, li;
-    // float f = 10.1, lf;
-    // main_mem.enQ(SD, INTGR, 1, &i);
-    // main_mem.enQ(SD, FLTP, 2, &f);
-    // main_mem.enQ(LD, INTGR, 1, &li);
-    // main_mem.enQ(LD, FLTP, 2, &lf);
     cin.get();
 }
