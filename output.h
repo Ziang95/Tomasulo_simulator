@@ -1,6 +1,9 @@
 #ifndef OUTPUT_H
 #define OUTPUT_H
 
+#include <iomanip>
+#include <sstream>
+
 class ROBEntry;
 
 #include "ROB.h"

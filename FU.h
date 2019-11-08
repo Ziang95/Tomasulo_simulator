@@ -17,6 +17,7 @@ typedef struct FU_QEntry
     memCell *oprnd1;
     memCell *oprnd2;
     int offset;
+    bool *busy;
 }FU_QEntry;
 
 #include "mips.h"
@@ -33,7 +34,7 @@ class FU_CDB{
         pthread_t handle;
         bool enQ(valType t, void *v, int s);
         int get_source();                      //Called at rising edges
-        bool get_val(void *v);                 //Called at rising edges
+        bool get_val(memCell *v);                 //Called at rising edges
         void CDB_automat();
 };
 
@@ -47,7 +48,7 @@ class FU_Q
         mutex_t Q_lock;
     public:
         FU_Q();
-        const FU_QEntry* enQ(opCode c, valType rt, int d, memCell *r, memCell *op1, memCell *op2, int offst);
+        const FU_QEntry* enQ(opCode c, valType rt, int d, memCell *r, memCell *op1, memCell *op2, int offst, bool *busy);
         FU_QEntry* deQ();
 };
 

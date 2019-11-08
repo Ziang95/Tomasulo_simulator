@@ -68,10 +68,13 @@ void ROB::ROB_automate()
             string rName = buf[front].regName;
             msg_log("Commit " + rName + " = " + to_string(rName[0]=='R'? buf[front].value.i : buf[front].value.f), 3);
             buf[front].output.commit = sys_clk.get_prog_cyc();
-            auto got = RAT.find(rName);
-            if (got != RAT.end() && got->second == front)
-                RAT.erase(got);
-            reg.set(rName, &buf[front].value);
+            if (buf[front].regName != "SD")
+            {
+                auto got = RAT.find(rName);
+                if (got != RAT.end() && got->second == front)
+                    RAT.erase(got);
+                reg.set(rName, &buf[front].value);
+            }
             instr_timeline_output(&buf[front]);
             at_falling_edge(&lock, next_vdd);
             front = (++front)%size;

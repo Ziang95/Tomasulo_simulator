@@ -101,11 +101,12 @@ bool read_config_instrs(string path)
         return false;
     }
     CPU_cfg = cfg_ret;
+    msg_log("CPU config read", 0);
 #pragma endregion
 #pragma region read_ini_reg_values
     string tmp;
     reg.clear();
-    getline(file, line);
+    do {getline(file, line);}while(line.empty()||line.size()<4);
     line.erase(remove(line.begin(),line.end(),' '),line.end());
     line.erase(remove(line.begin(),line.end(),'\t'),line.end());
     istringstream iss(line);
@@ -136,9 +137,10 @@ bool read_config_instrs(string path)
         }
         
     }
+    msg_log("Ini reg values read", 2);
 #pragma endregion
 #pragma region read_ini_mem_values
-    getline(file, line);
+    do{getline(file, line);}while(line.empty()||line.size()<4);
     line.erase(remove(line.begin(),line.end(),' '),line.end());
     line.erase(remove(line.begin(),line.end(),'\t'),line.end());
     istringstream iss1(line);
@@ -159,6 +161,7 @@ bool read_config_instrs(string path)
             main_mem.setMem(FLTP, stoi(tmp.substr(lb+1, rb-lb-1)), &val);
         }
     }
+    msg_log("Ini mem values read", 2);
 #pragma endregion
 #pragma region read_instrs
     if (instr_Q)
@@ -263,7 +266,7 @@ bool read_config_instrs(string path)
     }
     instr_Q = new instr_queue(tmp_Q);
 #pragma endregion
-    msg_log("Read completed successfully!", 1);
+    msg_log("Read complete!", 1);
     file.close();
     return true;
 }

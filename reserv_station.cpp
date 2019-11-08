@@ -53,7 +53,7 @@ bool resStation::fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk, int 
     Rk = Qk<0? true:false;
     to_start = Rj&&Rk? false:true;
     if (!to_start)
-        prnt_Q->enQ(code, retType, dest, &rest, &Vj, &Vk, offset);
+        prnt_Q->enQ(code, retType, dest, &rest, &Vj, &Vk, offset, &busy);
     return true;
 }
 
@@ -65,24 +65,22 @@ bool resStation::get_state()
 void resStation::reserv_automat()
 {
     mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    bool to_commit;
     while (true)
     {
         at_rising_edge(&lock, next_vdd);
         if (busy)
         {
-            if (code == SD)
-            {
-                ROBEntry *R = CPU_ROB->get_entry(dest);
-                R->finished = true;
-            }
             if (fCDB.get_source() == dest)
             {
                 msg_log("WriteBack, ", 3);
                 busy = false;
+                at_falling_edge(&lock, next_vdd);
                 ROBEntry *R = CPU_ROB->get_entry(dest);
                 fCDB.get_val(&R->value);
                 R->finished = true;
                 R->output.wBack = sys_clk.get_prog_cyc();
+                goto A;
             }
             else if (!Rj || !Rk)
             {
@@ -98,9 +96,8 @@ void resStation::reserv_automat()
                 }
             }
         }
-        
         at_falling_edge(&lock, next_vdd);
-        if (busy && to_start && Rj && Rk)
+A:      if (busy && to_start && Rj && Rk)
         {
             msg_log("Operands ready, sending to FU", 3);
             to_start = false;
@@ -108,7 +105,7 @@ void resStation::reserv_automat()
                 Vk.f = sub? -Vk.f : Vk.f;
             else
                 Vk.i = sub? -Vk.i : Vk.i;
-            prnt_Q->enQ(code, retType, dest, &rest, &Vj, &Vk, offset);
+            prnt_Q->enQ(code, retType, dest, &rest, &Vj, &Vk, offset, &busy);
         }
     }
 }

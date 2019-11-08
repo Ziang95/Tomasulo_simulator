@@ -186,36 +186,12 @@ void *issue_automat(void *arg)
                             avai = (*lsUnit[i]).rs[j];
                 if (avai)
                 {
-                    auto found_j = RAT.find(tmp->oprnd1);
-                    auto found_k = RAT.find(tmp->dest);
-                    if (found_j != RAT.end())
-                    {
-                        Qj = found_j->second;
-                        ROBEntry *R = CPU_ROB->get_entry(Qj);
-                        if (R->finished)
-                        {
-                            i_Vj = R->value.i;
-                            Qj = -1;
-                        }
-                    }
-                    else
-                        reg.get(tmp->oprnd1, &i_Vj);
-                    if (found_k != RAT.end())
-                    {
-                        Qk = found_j->second;
-                        ROBEntry *R = CPU_ROB->get_entry(Qk);
-                        if (R->finished)
-                        {
-                            f_Vk = R->value.f;
-                            Qk = -1;
-                        }
-                    }
-                    else
-                        reg.get(tmp->dest, &f_Vk);
+                    get_int_reg_or_rob(tmp->oprnd1, &Qj, &i_Vj);
+                    get_flp_reg_or_rob(tmp->dest, &Qk, &f_Vk);
                     int dest;
                     try
                     {
-                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest);
+                        dest = CPU_ROB->add_entry(tmp->name, "SD");
                     }
                     catch(const int e)
                     {
@@ -223,7 +199,6 @@ void *issue_automat(void *arg)
                         break;
                     }
                     instr_Q->ptr_advance();
-                    RAT[tmp->dest] = dest;
                     if (tmp->dest[0] == 'R')
                         avai->set_ret_type(INTGR);
                     else

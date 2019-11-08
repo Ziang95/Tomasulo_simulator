@@ -33,17 +33,14 @@ bool FU_CDB::enQ(valType t, void *v, int s)
     int pos = 0;
     for (; (front + pos)%Q_LEN != index && queue[(front + pos)%Q_LEN].source < s; pos++);
     for (int i = index; (Q_LEN + i)%Q_LEN != (front + pos)%Q_LEN; i--)
-    {
-        queue[(Q_LEN+i)%Q_LEN].source = queue[(Q_LEN+i-1)%Q_LEN].source;
-        queue[(Q_LEN+i)%Q_LEN].value = queue[(Q_LEN+i-1)%Q_LEN].value;
-        queue[(Q_LEN+i)%Q_LEN].type = queue[(Q_LEN+i-1)%Q_LEN].type;
-    }
-    queue[(front+pos)%Q_LEN].type = t;
+        queue[(Q_LEN+i)%Q_LEN] = queue[(Q_LEN+i-1)%Q_LEN];
+    index = (front+pos)%Q_LEN;
+    queue[index].type = t;
     if (t == INTGR)
-        queue[(front+pos)%Q_LEN].value.i = *(int*)v;
+        queue[index].value.i = *(int*)v;
     else
-        queue[(front+pos)%Q_LEN].value.f = *(float*)v;
-    queue[(front+pos)%Q_LEN].source = s;
+        queue[index].value.f = *(float*)v;
+    queue[index].source = s;
     pthread_mutex_unlock(&Q_lock);
     return true;
 }
@@ -53,12 +50,12 @@ int FU_CDB::get_source()
     return bus.source;
 }
 
-bool FU_CDB::get_val(void *v)
+bool FU_CDB::get_val(memCell *v)
 {
     if (bus.type == INTGR)
-        *(int*)v = bus.value.i;
+        v->i = bus.value.i;
     else
-        *(float*)v = bus.value.f;
+        v->f = bus.value.f;
     return true;
 }
 
@@ -92,7 +89,7 @@ FU_Q::FU_Q()
     Q_lock = PTHREAD_MUTEX_INITIALIZER;
 }
 
-const FU_QEntry* FU_Q::enQ(opCode c, valType rt, int d, memCell *r, memCell *op1, memCell *op2, int offst)
+const FU_QEntry* FU_Q::enQ(opCode c, valType rt, int d, memCell *r, memCell *op1, memCell *op2, int offst, bool* busy)
 {
     pthread_mutex_lock(&Q_lock);
     if ((rear+1)%Q_LEN == front)
@@ -102,6 +99,11 @@ const FU_QEntry* FU_Q::enQ(opCode c, valType rt, int d, memCell *r, memCell *op1
     }
     int index = rear;
     rear = (++rear)%Q_LEN;
+    int pos = 0;
+    for (; (front + pos)%Q_LEN != index && queue[(front + pos)%Q_LEN].dest < d; pos++);
+    for (int i = index; (Q_LEN + i)%Q_LEN != (front + pos)%Q_LEN; i--)
+        queue[(Q_LEN+i)%Q_LEN] = queue[(Q_LEN+i-1)%Q_LEN];
+    index = (front+pos)%Q_LEN;
     queue[index].code = c;
     queue[index].rtType = rt;
     queue[index].dest = d;
@@ -110,6 +112,7 @@ const FU_QEntry* FU_Q::enQ(opCode c, valType rt, int d, memCell *r, memCell *op1
     queue[index].oprnd2 = op2;
     queue[index].offset = offst;
     queue[index].done = false;
+    queue[index].busy = busy;
     pthread_mutex_unlock(&Q_lock);
     return &queue[index];
 }
@@ -368,10 +371,17 @@ void ldsdUnit::FU_automate()
                 msg_log("Calculating address "+to_string(*(int*)task.oprnd1)+" + "+to_string(task.offset), 3);
                 if (i == CPU_cfg->ld_str->exe_time - 1)
                 {
-                    int addr = *(int*)task.oprnd1 + task.offset;
+                    int addr = task.oprnd1->i + task.offset;
+                    if (task.code == SD)
+                        *task.busy = false;
                     at_falling_edge(&lock, next_vdd);
                     try {main_mem.enQ(task.dest, task.code, task.rtType, addr, task.oprnd2);}
                     catch(const int e){err_log("Exception = "+to_string(e));}
+                    if (task.code == SD)
+                    {
+                        ROBEntry *R = CPU_ROB->get_entry(task.dest);
+                        R->finished = true;
+                    }
                     task.done = true;
                     break;
                 }

@@ -29,8 +29,7 @@ bool memory::store(QEntry& entry) //This function is designed with "being called
     ROBEntry *R = CPU_ROB->get_entry(entry.rob_i);
     while (true)
     {
-        if (CPU_ROB->get_front() == entry.rob_i)
-            break;
+        if (CPU_ROB->get_front() >= entry.rob_i);
         at_falling_edge(&lock, next_vdd);
         if (!R->finished)
             return true;
@@ -87,7 +86,7 @@ bool memory::load(QEntry& entry) //This function is designed with "being called 
         else
             *(int*)entry.val = buf[entry.addr].i;
     }
-    fCDB.enQ(entry.type, &entry.val, entry.rob_i);
+    fCDB.enQ(entry.type, entry.val, entry.rob_i);
     entry.done = true;
     at_falling_edge(&lock, next_vdd);
     msg_log("Value loaded, Val="+to_string(entry.type == FLTP?(*(float*)entry.val):(*(int*)entry.val)), 2);

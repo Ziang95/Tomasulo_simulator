@@ -19,6 +19,8 @@ memory main_mem = memory(MEM_LEN);
 
 vector<string> CPU_output_Q = {};
 
+int debug_level = 0;
+
 static mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
 static mutex_t cerr_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -127,7 +129,7 @@ bool clk_tick::oscillator(int freq)
 void msg_log(string msg, int lvl)
 {
     pthread_mutex_lock(&cout_lock);
-    if (DEBUG_LEVEL>=lvl)
+    if (debug_level>=lvl)
         cout<<"[Pro_cyc="<<sys_clk.get_prog_cyc()<<", vdd="<<sys_clk.get_vdd()<<"] "<<msg<<endl;
     pthread_mutex_unlock(&cout_lock);
 }
@@ -163,14 +165,14 @@ void start_sys_clk() // Starts the primal VDD clock and wait until it goes stabl
     pthread_create(&(sys_clk.handle), NULL, [](void *arg)->void*{sys_clk.oscillator(500);return NULL;},NULL);
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    if (argc = 2)
+        debug_level = stoi(argv[1]);
     if (!read_config_instrs("./inputTest.txt"))
         return -1;
     init_CPU_ROB();
-    msg_log("Threads count is: "+to_string(clk_wait_list.size()), 0);
     init_FUs();
-    msg_log("Threads count is: "+to_string(clk_wait_list.size()), 0);
     init_FU_CDB();
     init_main_mem();
     init_issue_unit();
