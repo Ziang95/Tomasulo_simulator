@@ -28,7 +28,7 @@ typedef struct instr
     int offset = 0;
 }instr;
 
-#include "mips.h"
+#include "clock.h"
 
 class instr_queue
 {
@@ -39,7 +39,7 @@ class instr_queue
         const vector<instr> Q;
         instr_queue(vector<instr> a);
         bool ptr_advance();
-        bool ptr_branch(int dest);
+        bool ptr_branch(int offset);
         bool finished();
         const instr *getInstr();
 };

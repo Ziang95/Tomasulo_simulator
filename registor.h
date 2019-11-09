@@ -13,8 +13,8 @@ class registor
     public:
         registor(int iRegSize, int fRegSize);
         ~registor();
-        bool get(string name, void *ret);
-        bool set(string name, void *val);
+        bool get(string name, memCell &ret);
+        bool set(string name, memCell val);
         void clear();
 };
 

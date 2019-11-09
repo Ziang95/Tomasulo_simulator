@@ -58,9 +58,6 @@ class resStation;
 
 class functionUnit
 {
-    private:
-        int front = 0;
-        int rear = 0;
     public:
         FU_Q queue;
         FU_QEntry task;
@@ -68,7 +65,7 @@ class functionUnit
         functionUnit();
         int next_vdd;
         pthread_t handle;
-        virtual void FU_automate(){};
+        virtual void FU_automat(){};
 };
 
 class intAdder : public functionUnit
@@ -76,7 +73,7 @@ class intAdder : public functionUnit
     public:
         intAdder();
         ~intAdder();
-        void FU_automate();
+        void FU_automat();
 };
 
 class flpAdder : public functionUnit
@@ -87,7 +84,7 @@ class flpAdder : public functionUnit
     public:
         flpAdder();
         ~flpAdder();
-        void FU_automate();
+        void FU_automat();
 };
 
 class flpMtplr : public functionUnit
@@ -98,7 +95,7 @@ class flpMtplr : public functionUnit
     public:
         flpMtplr();
         ~flpMtplr();
-        void FU_automate();
+        void FU_automat();
 };
 
 class ldsdUnit: public functionUnit
@@ -106,7 +103,7 @@ class ldsdUnit: public functionUnit
     public:
         ldsdUnit();
         ~ldsdUnit();
-        void FU_automate();
+        void FU_automat();
 };
 
 void* intAdder_thread_container(void *arg);

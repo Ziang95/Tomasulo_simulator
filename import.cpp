@@ -115,6 +115,7 @@ bool read_config_instrs(string path)
         size_t e = tmp.find('=');
         size_t f = tmp.find('F');
         size_t i = tmp.find('R');
+        memCell val;
         if (i != string::npos)
         {
             if (tmp.find('.') != string::npos)
@@ -122,13 +123,13 @@ bool read_config_instrs(string path)
                 err_log("Error: Trying to assign float value to an int reg");
                 return -1;
             }
-            int val = stoi(tmp.substr(e + 1, tmp.size() - e - 1));
-            reg.set(tmp.substr(i, e), &val);
+            val.i = stoi(tmp.substr(e + 1, tmp.size() - e - 1));
+            reg.set(tmp.substr(i, e), val);
         }
         else if (f != string::npos)
         {
-            float val = stof(tmp.substr(e + 1, tmp.size() - e - 1));
-            reg.set(tmp.substr(f, e), &val);
+            val.f = stof(tmp.substr(e + 1, tmp.size() - e - 1));
+            reg.set(tmp.substr(f, e), val);
         }
         else
         {
@@ -222,18 +223,18 @@ bool read_config_instrs(string path)
             case BNE:
             case BEQ:
             {
-                getline(s, dest, ',');
                 getline(s, op1, ',');
+                getline(s, op2, ',');
                 getline(s, ofst, ',');
-                dest.erase(remove(dest.begin(), dest.end(), ' '), dest.end());
                 op1.erase(remove(op1.begin(), op1.end(), ' '), op1.end());
+                op2.erase(remove(op2.begin(), op2.end(), ' '), op2.end());
                 ofst.erase(remove(ofst.begin(), ofst.end(), ' '), ofst.end());
-                dest.erase(remove(dest.begin(), dest.end(), '\t'), dest.end());
                 op1.erase(remove(op1.begin(), op1.end(), '\t'), op1.end());
+                op2.erase(remove(op2.begin(), op2.end(), '\t'), op2.end());
                 ofst.erase(remove(ofst.begin(), ofst.end(), '\t'), ofst.end());
                 tmp_i.code = code;
-                tmp_i.dest = dest;
                 tmp_i.oprnd1 = op1;
+                tmp_i.oprnd2 = op2;
                 tmp_i.offset = stoi(ofst);
                 break;
             }

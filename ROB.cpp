@@ -11,7 +11,6 @@ extern registor reg;
 
 ROB::ROB(int s):size(s)
 {
-    next_vdd = 0;
     buf = new ROBEntry[s];
     for (int i = 0; i<s; i++)
     {
@@ -38,17 +37,23 @@ ROBEntry *ROB::get_entry(int index)
     return &buf[index];
 }
 
+void ROB::ptr_advance()
+{
+    front = (++front)%size;
+}
+
 int ROB::get_front()
 {
     return front;
 }
 
-int ROB::add_entry(string n, string d)
+int ROB::add_entry(string n, string d, opCode c)
 {
     if ((rear+1)%size == front)
         throw -1;
     int index = rear;
     rear = (rear + 1)%size;
+    buf[index].code = c;
     buf[index].name = n;
     buf[index].regName = d;
     buf[index].finished = false;
@@ -59,31 +64,31 @@ int ROB::add_entry(string n, string d)
 
 void ROB::ROB_automate()
 {
-    mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    next_vdd = 0;
     while (true)
     {
-        at_rising_edge(&lock, next_vdd);
+        at_rising_edge(next_vdd);
         if (front != rear && buf[front].finished)
         {
             string rName = buf[front].regName;
-            msg_log("Commit " + rName + " = " + to_string(rName[0]=='R'? buf[front].value.i : buf[front].value.f), 3);
+            msg_log("Commit " + rName + " = " + to_string(rName[0]=='R'? buf[front].value.i : buf[front].value.f) + " ROB = " + to_string(front), 3);
             buf[front].output.commit = sys_clk.get_prog_cyc();
-            if (buf[front].regName != "SD")
+            if (buf[front].regName != "NO_RET")
             {
                 auto got = RAT.find(rName);
                 if (got != RAT.end() && got->second == front)
                     RAT.erase(got);
-                reg.set(rName, &buf[front].value);
+                reg.set(rName, buf[front].value);
             }
             instr_timeline_output(&buf[front]);
-            at_falling_edge(&lock, next_vdd);
-            front = (++front)%size;
+            at_falling_edge(next_vdd);
+            ptr_advance();
         }
         else
         {
             if (front == rear && instr_Q->finished())
                 sys_clk.end_prog();
-            at_falling_edge(&lock, next_vdd);
+            at_falling_edge(next_vdd);
         }
     }
 }
@@ -100,6 +105,7 @@ void init_CPU_ROB()
     if (CPU_ROB)
         delete CPU_ROB;
     CPU_ROB = new ROB(*(CPU_cfg->ROB_num));
+    int ret = 1;
+    while(ret) ret = pthread_create(&CPU_ROB->handle, NULL, &ROB_thread_container, CPU_ROB);
     clk_wait_list.push_back(&CPU_ROB->next_vdd);
-    pthread_create(&CPU_ROB->handle, NULL, &ROB_thread_container, CPU_ROB);
 }

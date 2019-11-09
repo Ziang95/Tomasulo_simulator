@@ -6,7 +6,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "mips.h"
+#include "clock.h"
 #include "instruction.h"
 
 using namespace std;

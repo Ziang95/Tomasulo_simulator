@@ -12,9 +12,9 @@ extern ROB* CPU_ROB;
 extern unordered_map <string, int> RAT;
 extern instr_queue *instr_Q;
 
-static int next_vdd = 0;
+static int next_vdd;
 
-void get_int_reg_or_rob(string regName, int *Q, int *V)
+void get_reg_or_rob(string regName, int &Q, memCell &V)
 {
     auto found = RAT.find(regName);
     if (found != RAT.end())
@@ -22,25 +22,9 @@ void get_int_reg_or_rob(string regName, int *Q, int *V)
         int tmp = found->second;
         ROBEntry *R = CPU_ROB->get_entry(tmp);
         if (R->finished)
-            *V = R->value.i;
+            V = R->value;
         else
-            *Q = tmp;
-    }
-    else
-        reg.get(regName, V);
-}
-
-void get_flp_reg_or_rob(string regName, int *Q, float *V)
-{
-    auto found = RAT.find(regName);
-    if (found != RAT.end())
-    {
-        int tmp = found->second;
-        ROBEntry *R = CPU_ROB->get_entry(tmp);
-        if (R->finished)
-            *V = R->value.f;
-        else
-            *Q = tmp;
+            Q = tmp;
     }
     else
         reg.get(regName, V);
@@ -48,22 +32,21 @@ void get_flp_reg_or_rob(string regName, int *Q, float *V)
 
 void *issue_automat(void *arg)
 {
-    mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    next_vdd = 0;
     const instr *tmp = nullptr;
-    int i_Vj, i_Vk;
-    float f_Vj, f_Vk;
+    memCell Vj, Vk;
     int Qj, Qk;
     while (true)
     {
-        at_rising_edge(&lock, next_vdd);
+        at_rising_edge(next_vdd);
         tmp = nullptr;
         Qj = Qk = -1;
         if (!instr_Q->finished())
             tmp = instr_Q->getInstr();
-        at_falling_edge(&lock, next_vdd);
+        at_falling_edge(next_vdd);
         if (tmp)
         {
-            msg_log("Issuing code: " + tmp->name, 3);
+            msg_log("Issuing code: " + tmp->name, 2);
             resStation *avai = nullptr;
             switch (tmp->code)
             {
@@ -75,15 +58,15 @@ void *issue_automat(void *arg)
                             avai = (*iAdder[i]).rs[j];
                 if (avai)
                 {
-                    get_int_reg_or_rob(tmp->oprnd1, &Qj, &i_Vj);
+                    get_reg_or_rob(tmp->oprnd1, Qj, Vj);
                     if (tmp->code == ADDI)
-                        i_Vk = tmp->imdt;
+                        Vk.i = tmp->imdt;
                     else
-                        get_int_reg_or_rob(tmp->oprnd2, &Qk, &i_Vk);
+                        get_reg_or_rob(tmp->oprnd2, Qk, Vk);
                     int dest;
                     try
                     {
-                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest);
+                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest, tmp->code);
                     }
                     catch(const int e)
                     {
@@ -92,7 +75,7 @@ void *issue_automat(void *arg)
                     }
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
-                    avai->fill_rs(dest, Qj, Qk, &i_Vj, &i_Vk, tmp->offset, tmp->code == SUB);
+                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, tmp->code == SUB);
                 }
                 break;
             }
@@ -104,12 +87,12 @@ void *issue_automat(void *arg)
                             avai = (*fAdder[i]).rs[j];
                 if (avai)
                 {
-                    get_flp_reg_or_rob(tmp->oprnd1, &Qj, &f_Vj);
-                    get_flp_reg_or_rob(tmp->oprnd2, &Qk, &f_Vk);
+                    get_reg_or_rob(tmp->oprnd1, Qj, Vj);
+                    get_reg_or_rob(tmp->oprnd2, Qk, Vk);
                     int dest;
                     try
                     {
-                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest);
+                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest, tmp->code);
                     }
                     catch(const int e)
                     {
@@ -118,7 +101,7 @@ void *issue_automat(void *arg)
                     }
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
-                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &f_Vk, tmp->offset, tmp->code == SUB_D);
+                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, tmp->code == SUB_D);
                 }
                 break;
             }
@@ -130,12 +113,12 @@ void *issue_automat(void *arg)
                             avai = (*fMtplr[i]).rs[j];
                 if (avai)
                 {
-                    get_flp_reg_or_rob(tmp->oprnd1, &Qj, &f_Vj);
-                    get_flp_reg_or_rob(tmp->oprnd2, &Qk, &f_Vk);
+                    get_reg_or_rob(tmp->oprnd1, Qj, Vj);
+                    get_reg_or_rob(tmp->oprnd2, Qk, Vk);
                     int dest;
                     try
                     {
-                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest);
+                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest, tmp->code);
                     }
                     catch(const int e)
                     {
@@ -144,7 +127,7 @@ void *issue_automat(void *arg)
                     }
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
-                    avai->fill_rs(dest, Qj, Qk, &f_Vj, &f_Vk, tmp->offset, false);
+                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, false);
                 }
                 break;
             }
@@ -156,11 +139,11 @@ void *issue_automat(void *arg)
                             avai = (*lsUnit[i]).rs[j];
                 if (avai)
                 {
-                    get_int_reg_or_rob(tmp->oprnd1, &Qj, &i_Vj);
+                    get_reg_or_rob(tmp->oprnd1, Qj, Vj);
                     int dest;
                     try
                     {
-                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest);
+                        dest = CPU_ROB->add_entry(tmp->name, tmp->dest, tmp->code);
                     }
                     catch(const int e)
                     {
@@ -174,7 +157,7 @@ void *issue_automat(void *arg)
                     else
                         avai->set_ret_type(FLTP);
                     avai->set_code(LD);
-                    avai->fill_rs(dest, Qj, Qk, &i_Vj, &i_Vk, tmp->offset, false);
+                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, false);
                 }
                 break;
             }
@@ -186,12 +169,12 @@ void *issue_automat(void *arg)
                             avai = (*lsUnit[i]).rs[j];
                 if (avai)
                 {
-                    get_int_reg_or_rob(tmp->oprnd1, &Qj, &i_Vj);
-                    get_flp_reg_or_rob(tmp->dest, &Qk, &f_Vk);
+                    get_reg_or_rob(tmp->oprnd1, Qj, Vj);
+                    get_reg_or_rob(tmp->dest, Qk, Vk);
                     int dest;
                     try
                     {
-                        dest = CPU_ROB->add_entry(tmp->name, "SD");
+                        dest = CPU_ROB->add_entry(tmp->name, "NO_RET", tmp->code);
                     }
                     catch(const int e)
                     {
@@ -204,7 +187,43 @@ void *issue_automat(void *arg)
                     else
                         avai->set_ret_type(FLTP);
                     avai->set_code(SD);
-                    avai->fill_rs(dest, Qj, Qk, &i_Vj, &f_Vk, tmp->offset, false);
+                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, false);
+                }
+                break;
+            }
+            case BNE: case BEQ:
+            {
+                for (int i = 0; i < iAdder.size(); i++)
+                    for (int j = 0; j < (*iAdder[i]).rs.size(); j++)
+                        if ((*iAdder[i]).rs[j]->get_state() == false)
+                            avai = (*iAdder[i]).rs[j];
+                if (avai)
+                {
+                    get_reg_or_rob(tmp->oprnd1, Qj, Vj);
+                    get_reg_or_rob(tmp->oprnd2, Qk, Vk);
+                    int dest;
+                    try
+                    {
+                        dest = CPU_ROB->add_entry(tmp->name, "NO_RET", tmp->code);
+                    }
+                    catch(const int e)
+                    {
+                        err_log("ROB is full");
+                        break;
+                    }
+                    avai->set_ret_type(INTGR);
+                    avai->set_code(tmp->code);
+                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, false);
+                    while (avai->get_state())
+                    {
+                        at_rising_edge(next_vdd);
+                        at_falling_edge(next_vdd);
+                    }
+                    memCell outcome = avai->get_res();
+                    if (outcome.i)
+                        instr_Q->ptr_branch(tmp->offset);
+                    else
+                        instr_Q->ptr_advance();
                 }
                 break;
             }
@@ -218,6 +237,7 @@ void *issue_automat(void *arg)
 
 void init_issue_unit()
 {
+    int ret = 1;
+    while(ret) ret = pthread_create(&iss_unit, NULL, &issue_automat, NULL);
     clk_wait_list.push_back(&next_vdd);
-    pthread_create(&iss_unit, NULL, &issue_automat, NULL);
 }

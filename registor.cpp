@@ -15,7 +15,7 @@ registor::~registor()
     if (flpReg) delete[] flpReg;
 }
 
-bool registor::get(string name, void *ret)
+bool registor::get(string name, memCell &ret)
 {
     int index = stoi(name.substr(1, name.size() - 1));
     if (index >= INT_REG_NUM)
@@ -24,9 +24,9 @@ bool registor::get(string name, void *ret)
         return false;
     }
     if (name[0] == 'R')
-        *(int*)ret = intReg[index];
+        ret.i = intReg[index];
     else if (name[0] == 'F')
-        *(float*)ret = flpReg[index];
+        ret.f = flpReg[index];
     else
     {
         err_log("Reg name error");
@@ -35,7 +35,7 @@ bool registor::get(string name, void *ret)
     return true;
 }
 
-bool registor::set(string name, void *val)
+bool registor::set(string name, memCell val)
 {
     int index = stoi(name.substr(1, name.size() - 1));
     if (index >= INT_REG_NUM)
@@ -50,10 +50,10 @@ bool registor::set(string name, void *val)
             err_log("R0 can't be modified");
             return false;
         }
-        intReg[index] = *(int*)val;
+        intReg[index] = val.i;
     }
     else if (name[0] == 'F')
-        flpReg[index] = *(float*)val;
+        flpReg[index] = val.f;
     else
     {
         err_log("Reg name error");

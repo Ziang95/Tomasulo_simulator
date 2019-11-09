@@ -51,7 +51,8 @@ class ROB
         ROB(int size);
         ~ROB();
         ROBEntry* get_entry(int index);
-        int add_entry(string n, string r);
+        int add_entry(string n, string r, opCode c);
+        void ptr_advance();
         int get_front();
         void ROB_automate();
 };

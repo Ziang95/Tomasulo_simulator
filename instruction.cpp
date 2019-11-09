@@ -22,9 +22,10 @@ bool instr_queue::ptr_advance()
     return true;
 }
 
-bool instr_queue::ptr_branch(int dest)
+bool instr_queue::ptr_branch(int offset)
 {
-    if (dest >= size || dest<0)
+    int dest = offset + head + 1;
+    if (dest >= size || dest < 0)
     {
         err_log("Instr queue acccess out of range while branching");
         return false;

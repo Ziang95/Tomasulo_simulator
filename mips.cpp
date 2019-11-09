@@ -21,162 +21,24 @@ vector<string> CPU_output_Q = {};
 
 int debug_level = 0;
 
-static mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
-static mutex_t cerr_lock = PTHREAD_MUTEX_INITIALIZER;
-
-
-clk_tick::clk_tick()
-{
-    vdd_0 = vdd_1 = PTHREAD_COND_INITIALIZER;
-    vdd = 0;
-    prog_started = false;
-    prog_cyc = 0;
-}
-
-bool clk_tick::get_vdd()
-{
-    return vdd;
-}
-
-void clk_tick::reset_prog_cyc()
-{
-    prog_cyc = 0;
-}
-
-int clk_tick::get_prog_cyc()
-{
-    return prog_cyc;
-}
-
-bool clk_tick::get_prog_ended()
-{
-    return prog_ended;
-}
-
-void clk_tick::end_prog()
-{
-    prog_ended = true;
-}
-
-int all_unit_ready_for_one()
-{
-    int i = 1;
-    for (const int* v : clk_wait_list)
-    {
-        if (!v)
-        {
-            err_log("null Ptr encountered in clk_wait_list");
-            return -1;
-        }
-        i*=*v;
-    }
-    return i == 1;
-}
-
-int all_unit_ready_for_zero()
-{
-    int i = 0;
-    for (const int* v : clk_wait_list)
-    {
-        if (!v)
-        {
-            err_log("null Ptr encountered in clk_wait_list");
-            return -1;
-        }
-        i+=*v;
-    }
-    return i == 0;
-}
-
-bool clk_tick::oscillator(int freq)
-{
-    if (freq > 500)
-    {
-        err_log("Frequency should be no greater than 500");
-        return false;
-    }
-    while (true)
-    {
-        while (!all_unit_ready_for_one())
-        {
-            string outp = "";
-            for (auto a : clk_wait_list)
-                outp += to_string(*a) + ",";
-            msg_log("In waiting for vdd = 1, " + outp, 4);
-            Sleep(500/freq);
-        }
-        prog_cyc++;
-        vdd = 1;
-        if (prog_cyc == 1)
-            msg_log("Program Started\n", 0);
-        pthread_cond_broadcast(&vdd_1);
-
-        while (!all_unit_ready_for_zero())
-        {
-            string outp = "";
-            for (auto a : clk_wait_list)
-                outp += to_string(*a) + ",";
-            msg_log("In waiting for vdd = 0, " + outp, 4);
-            Sleep(500/freq);
-        }
-        vdd = 0;
-        pthread_cond_broadcast(&vdd_0);
-        if (prog_ended)
-            return true;
-    }
-}
-
-void msg_log(string msg, int lvl)
-{
-    pthread_mutex_lock(&cout_lock);
-    if (debug_level>=lvl)
-        cout<<"[Pro_cyc="<<sys_clk.get_prog_cyc()<<", vdd="<<sys_clk.get_vdd()<<"] "<<msg<<endl;
-    pthread_mutex_unlock(&cout_lock);
-}
-
-void err_log(string err)
-{
-    pthread_mutex_lock(&cout_lock);
-    cout<<"[Pro_cyc="<<sys_clk.get_prog_cyc()<<", vdd="<<sys_clk.get_vdd()<<"] "<<err<<endl;
-    pthread_mutex_unlock(&cout_lock);
-}
-
-void at_rising_edge(mutex_t *lock, int &next_vdd)
-{
-    next_vdd = 1;
-    pthread_mutex_lock(lock);
-    while(sys_clk.get_vdd() == 0)
-        pthread_cond_wait(&(sys_clk.vdd_1), lock);
-    pthread_mutex_unlock(lock);
-}
-
-void at_falling_edge(mutex_t *lock, int &next_vdd)
-{
-    next_vdd = 0;
-    pthread_mutex_lock(lock);
-    while(sys_clk.get_vdd() == 1)
-        pthread_cond_wait(&(sys_clk.vdd_0), lock);
-    pthread_mutex_unlock(lock);
-}
-
-void start_sys_clk() // Starts the primal VDD clock and wait until it goes stable (covered 500 cycles)
-{
-    sys_clk.reset_prog_cyc();
-    pthread_create(&(sys_clk.handle), NULL, [](void *arg)->void*{sys_clk.oscillator(500);return NULL;},NULL);
-}
-
 int main(int argc, char** argv)
 {
-    if (argc = 2)
-        debug_level = stoi(argv[1]);
-    if (!read_config_instrs("./inputTest.txt"))
+    if (argc < 2 || argc > 3)
+    {
+        cout<<"Require 1 or 2 arguments"<<endl;
         return -1;
-    init_CPU_ROB();
-    init_FUs();
-    init_FU_CDB();
-    init_main_mem();
-    init_issue_unit();
-    init_output_unit();
+    }
+    if (argc == 3)
+        debug_level = stoi(argv[2]);
+    if (!read_config_instrs(string(argv[1])))
+        return -1;
+    
+    init_CPU_ROB();//
+    init_FUs();//
+    init_FU_CDB();//
+    init_main_mem();//
+    init_issue_unit();//
+    init_output_unit();//
     msg_log("Threads count is: "+to_string(clk_wait_list.size()), 0);
     msg_log("instr buffer size is: " + to_string(instr_Q->size), 3);
     start_sys_clk();

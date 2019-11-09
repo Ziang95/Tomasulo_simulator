@@ -30,9 +30,10 @@ class resStation
         FU_Q *prnt_Q;
         resStation(FU_Q *Q, valType t);
         void set_code(opCode c);
+        memCell get_res();
         void set_ret_type(valType rt);
         void set_rest(memCell res);
-        bool fill_rs(int _dest, int _Qj, int _Qk, void *_Vj, void *_Vk, int _offset, bool _sub);
+        bool fill_rs(int _dest, int _Qj, int _Qk, memCell _Vj, memCell _Vk, int _offset, bool _sub);
         bool get_state();
         void reserv_automat();
 };
@@ -44,5 +45,6 @@ class ldRes : resStation
 };
 
 void* rs_thread_container(void *arg);
+void init_resStation(resStation *rs);
 
 #endif
