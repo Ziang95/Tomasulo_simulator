@@ -5,8 +5,10 @@ extern clk_tick sys_clk;
 registor::registor(int iRegSize, int fRegSize)
 {
     intReg = new int[iRegSize];
+    memset(intReg, 0, iRegSize);
     intReg[0] = 0;
     flpReg = new float[fRegSize];
+    memset(flpReg, 0, fRegSize);
 }
 
 registor::~registor()

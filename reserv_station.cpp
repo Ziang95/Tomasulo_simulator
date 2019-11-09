@@ -49,7 +49,11 @@ bool resStation::fill_rs(int _dest, int _Qj, int _Qk, memCell _Vj, memCell _Vk, 
     Rk = Qk<0? true:false;
     to_start = Rj&&Rk? false:true;
     if (!to_start)
+    {
+        msg_log("Operands ready, sending to FU, dest ROB = " + to_string(dest), 2);
         prnt_Q->enQ(code, retType, dest, &rest, &Vj, &Vk, offset, &busy);
+    }
+    msg_log("Res Station filled, ROB = " + to_string(dest), 3);
     return true;
 }
 
@@ -64,16 +68,17 @@ void resStation::reserv_automat()
     bool to_commit;
     while (true)
     {
-        at_rising_edge(next_vdd);
+A:      at_rising_edge(next_vdd);
         if (busy)
         {
             if (fCDB.get_source() == dest)
             {
-                msg_log("WriteBack, ", 3);
-                busy = false;
-                at_falling_edge(next_vdd);
+                msg_log("WriteBack to ROB = " + to_string(dest), 2);
                 ROBEntry *R = CPU_ROB->get_entry(dest);
                 fCDB.get_val(&R->value);
+                busy = false;
+                R->wrtnBack = true;
+                at_falling_edge(next_vdd);
                 R->finished = true;
                 R->output.wBack = sys_clk.get_prog_cyc();
                 goto A;
@@ -93,9 +98,13 @@ void resStation::reserv_automat()
             }
         }
         at_falling_edge(next_vdd);
-A:      if (busy && to_start && Rj && Rk)
+        if (!Rj || !Rk)
         {
-            msg_log("Operands ready, sending to FU, dest ROB = " + to_string(dest), 3);
+            msg_log("ROB: " + to_string(dest) + " waiting for operands" + (Rj?"":(" Qj = "+to_string(Qj))) + (Rk?"":(" Qk = "+to_string(Qk))), 3);
+        }
+        if (busy && to_start && Rj && Rk)
+        {
+            msg_log("Operands ready, sending to FU, dest ROB = " + to_string(dest), 2);
             to_start = false;
             if (type == FLTP)
                 Vk.f = sub? -Vk.f : Vk.f;

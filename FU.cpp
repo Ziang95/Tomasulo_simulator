@@ -169,7 +169,7 @@ A:      at_rising_edge(next_vdd);
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
             {
-                msg_log("Calculating INT "+to_string(task.oprnd1->i)+" + "+to_string(task.oprnd2->i), 3);
+                msg_log("Calculating INT "+to_string(task.oprnd1->i)+" + "+to_string(task.oprnd2->i) + " dest ROB = " + to_string(task.dest), 3);
                 if (i == CPU_cfg->int_add->exe_time - 1)
                 {
                     if (task.code == BEQ)
@@ -180,7 +180,6 @@ A:      at_rising_edge(next_vdd);
                         else
                             task.res->i = 0;
                         at_falling_edge(next_vdd);
-                        ROBEntry *R = CPU_ROB->get_entry(task.dest);
                         R->finished = true;
                         task.done = true;
                         goto A;
@@ -193,7 +192,6 @@ A:      at_rising_edge(next_vdd);
                         else
                             task.res->i = 1;
                         at_falling_edge(next_vdd);
-                        ROBEntry *R = CPU_ROB->get_entry(task.dest);
                         R->finished = true;
                         task.done = true;
                         goto A;
@@ -201,6 +199,7 @@ A:      at_rising_edge(next_vdd);
                     else
                     {
                         task.res->i = task.oprnd1->i + task.oprnd2->i;
+                        msg_log("CDB enqueued, ROB = " + to_string(task.dest), 3);
                         fCDB.enQ(INTGR, task.res, task.dest);
                     }
                     task.done = true;

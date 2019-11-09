@@ -12,11 +12,6 @@ extern registor reg;
 ROB::ROB(int s):size(s)
 {
     buf = new ROBEntry[s];
-    for (int i = 0; i<s; i++)
-    {
-        buf[i].output.mem = -1;
-        buf[i].output.wBack = -1;
-    }
     front = rear = 0;
 }
 
@@ -57,8 +52,10 @@ int ROB::add_entry(string n, string d, opCode c)
     buf[index].name = n;
     buf[index].regName = d;
     buf[index].finished = false;
+    buf[index].wrtnBack = false;
     buf[index].output.issue = sys_clk.get_prog_cyc();
     buf[index].output.mem = -1;
+    buf[index].output.wBack = -1;
     return index;
 }
 
@@ -71,7 +68,7 @@ void ROB::ROB_automate()
         if (front != rear && buf[front].finished)
         {
             string rName = buf[front].regName;
-            msg_log("Commit " + rName + " = " + to_string(rName[0]=='R'? buf[front].value.i : buf[front].value.f) + " ROB = " + to_string(front), 3);
+            msg_log("Commit " + rName + " = " + to_string(rName[0]=='R'? buf[front].value.i : buf[front].value.f) + " ROB = " + to_string(front), 2);
             buf[front].output.commit = sys_clk.get_prog_cyc();
             if (buf[front].regName != "NO_RET")
             {
@@ -81,13 +78,16 @@ void ROB::ROB_automate()
                 reg.set(rName, buf[front].value);
             }
             instr_timeline_output(&buf[front]);
-            at_falling_edge(next_vdd);
             ptr_advance();
+            msg_log("ROB pointer moved to: " + to_string(front), 3);
+            at_falling_edge(next_vdd);
         }
         else
         {
             if (front == rear && instr_Q->finished())
                 sys_clk.end_prog();
+            else
+                msg_log("ROB waiting for entry (" + to_string(front) + ") to finish", 3);
             at_falling_edge(next_vdd);
         }
     }

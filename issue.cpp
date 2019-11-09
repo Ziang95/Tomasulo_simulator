@@ -21,7 +21,7 @@ void get_reg_or_rob(string regName, int &Q, memCell &V)
     {
         int tmp = found->second;
         ROBEntry *R = CPU_ROB->get_entry(tmp);
-        if (R->finished)
+        if (R->wrtnBack)
             V = R->value;
         else
             Q = tmp;
@@ -75,8 +75,12 @@ void *issue_automat(void *arg)
                     }
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
+                    avai->set_code(tmp->code);
                     avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, tmp->code == SUB);
                 }
+                else
+                    msg_log("No available iAdder rs, wait until next cycle", 2);
+                
                 break;
             }
             case ADD_D: case SUB_D:
@@ -101,6 +105,7 @@ void *issue_automat(void *arg)
                     }
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
+                    avai->set_code(tmp->code);
                     avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, tmp->code == SUB_D);
                 }
                 break;
@@ -127,6 +132,7 @@ void *issue_automat(void *arg)
                     }
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
+                    avai->set_code(tmp->code);
                     avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, false);
                 }
                 break;

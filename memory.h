@@ -27,6 +27,7 @@ typedef struct LSQEntry
     valType type;                       //Value type can either be float 
     memCell* val;                          //Pointer of the value to store FROM of to load TO, can be int* or float*
     int addr;                           //Address to store to or load FROM
+    bool ready;
 }LSQEntry;
 
 #include "mips.h"
