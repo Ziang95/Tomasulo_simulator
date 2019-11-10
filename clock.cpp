@@ -30,14 +30,24 @@ int clk_tick::get_prog_cyc()
     return prog_cyc;
 }
 
-bool clk_tick::get_prog_ended()
+bool clk_tick::is_instr_ended()
 {
-    return prog_ended;
+    return instr_ended;
 }
 
-void clk_tick::end_prog()
+void clk_tick::end_instr()
 {
-    prog_ended = true;
+    instr_ended = true;
+}
+
+bool clk_tick::is_mem_ended()
+{
+    return mem_ended;
+}
+
+void clk_tick::end_mem()
+{
+    mem_ended = true;
 }
 
 int all_unit_ready_for_one()
@@ -106,11 +116,8 @@ bool clk_tick::clk_automat(int freq)
         vdd = 0;
         pthread_cond_broadcast(&vdd_0);
         pthread_mutex_unlock(&boradcast_lock);
-        if (prog_ended)
-        {
-            msg_log("Program ended", 0);
+        if (instr_ended && mem_ended)
             return true;
-        }
     }
 }
 
@@ -150,6 +157,5 @@ void at_falling_edge(int &next_vdd)
 void start_sys_clk() // Starts the primal VDD clock and wait until it goes stable (covered 500 cycles)
 {
     sys_clk.reset_prog_cyc();
-    int ret = 1;
-    while(ret) ret = pthread_create(&(sys_clk.handle), NULL, [](void *arg)->void*{sys_clk.clk_automat(500);return NULL;},NULL);
+    while(pthread_create(&(sys_clk.handle), NULL, [](void *arg)->void*{sys_clk.clk_automat(500);return NULL;},NULL));
 }

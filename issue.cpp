@@ -76,7 +76,7 @@ void *issue_automat(void *arg)
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
                     avai->set_code(tmp->code);
-                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, tmp->code == SUB);
+                    avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
                 }
                 else
                     msg_log("No available iAdder rs, wait until next cycle", 2);
@@ -106,7 +106,7 @@ void *issue_automat(void *arg)
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
                     avai->set_code(tmp->code);
-                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, tmp->code == SUB_D);
+                    avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
                 }
                 break;
             }
@@ -133,7 +133,7 @@ void *issue_automat(void *arg)
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
                     avai->set_code(tmp->code);
-                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, false);
+                    avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
                 }
                 break;
             }
@@ -158,12 +158,7 @@ void *issue_automat(void *arg)
                     }
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
-                    if (tmp->dest[0] == 'R')
-                        avai->set_ret_type(INTGR);
-                    else
-                        avai->set_ret_type(FLTP);
-                    avai->set_code(LD);
-                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, false);
+                    avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
                 }
                 break;
             }
@@ -176,7 +171,6 @@ void *issue_automat(void *arg)
                 if (avai)
                 {
                     get_reg_or_rob(tmp->oprnd1, Qj, Vj);
-                    get_reg_or_rob(tmp->dest, Qk, Vk);
                     int dest;
                     try
                     {
@@ -188,12 +182,8 @@ void *issue_automat(void *arg)
                         break;
                     }
                     instr_Q->ptr_advance();
-                    if (tmp->dest[0] == 'R')
-                        avai->set_ret_type(INTGR);
-                    else
-                        avai->set_ret_type(FLTP);
                     avai->set_code(SD);
-                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, false);
+                    avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
                 }
                 break;
             }
@@ -217,9 +207,8 @@ void *issue_automat(void *arg)
                         err_log("ROB is full");
                         break;
                     }
-                    avai->set_ret_type(INTGR);
                     avai->set_code(tmp->code);
-                    avai->fill_rs(dest, Qj, Qk, Vj, Vk, tmp->offset, false);
+                    avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
                     while (avai->get_state())
                     {
                         at_rising_edge(next_vdd);
@@ -243,7 +232,6 @@ void *issue_automat(void *arg)
 
 void init_issue_unit()
 {
-    int ret = 1;
-    while(ret) ret = pthread_create(&iss_unit, NULL, &issue_automat, NULL);
+    while(pthread_create(&iss_unit, NULL, &issue_automat, NULL));
     clk_wait_list.push_back(&next_vdd);
 }

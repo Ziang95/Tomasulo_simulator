@@ -6,6 +6,9 @@
 using namespace std;
 
 #include "instruction.h"
+#include "memory.h"
+
+struct LSQEntry;
 
 typedef struct FU_QEntry
 {
@@ -16,6 +19,7 @@ typedef struct FU_QEntry
     memCell *res;
     memCell *oprnd1;
     memCell *oprnd2;
+    LSQEntry *lsqe;
     int offset;
     bool *busy;
 }FU_QEntry;
@@ -32,7 +36,7 @@ class FU_CDB{
         int next_vdd;
         FU_CDB();
         pthread_t handle;
-        bool enQ(valType t, void *v, int s);
+        bool enQ(memCell *v, int s);
         int get_source();                      //Called at rising edges
         bool get_val(memCell *v);                 //Called at rising edges
         void CDB_automat();
@@ -48,7 +52,7 @@ class FU_Q
         mutex_t Q_lock;
     public:
         FU_Q();
-        const FU_QEntry* enQ(opCode c, valType rt, int d, memCell *r, memCell *op1, memCell *op2, int offst, bool *busy);
+        const FU_QEntry* enQ(opCode c, int d, memCell *r, memCell *op1, memCell *op2, LSQEntry* _lsqe, int offst, bool *busy);
         FU_QEntry* deQ();
 };
 

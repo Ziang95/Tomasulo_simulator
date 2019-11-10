@@ -18,7 +18,7 @@ FU_CDB::FU_CDB()
     Q_lock = PTHREAD_MUTEX_INITIALIZER;
 }
 
-bool FU_CDB::enQ(valType t, void *v, int s)
+bool FU_CDB::enQ(memCell *v, int s)
 {
     pthread_mutex_lock(&Q_lock);
     if ((rear+1)%Q_LEN == front)
@@ -34,11 +34,7 @@ bool FU_CDB::enQ(valType t, void *v, int s)
     for (int i = index; (Q_LEN + i)%Q_LEN != (front + pos)%Q_LEN; i--)
         queue[(Q_LEN+i)%Q_LEN] = queue[(Q_LEN+i-1)%Q_LEN];
     index = (front+pos)%Q_LEN;
-    queue[index].type = t;
-    if (t == INTGR)
-        queue[index].value.i = *(int*)v;
-    else
-        queue[index].value.f = *(float*)v;
+    queue[index].value = *v;
     queue[index].source = s;
     pthread_mutex_unlock(&Q_lock);
     return true;
@@ -51,10 +47,7 @@ int FU_CDB::get_source()
 
 bool FU_CDB::get_val(memCell *v)
 {
-    if (bus.type == INTGR)
-        v->i = bus.value.i;
-    else
-        v->f = bus.value.f;
+    *v = bus.value;
     return true;
 }
 
@@ -68,9 +61,8 @@ void FU_CDB::CDB_automat()
         if (front != rear)
         {
             bus.source = queue[front].source;
-            bus.type = queue[front].type;
             bus.value = queue[front].value;
-            msg_log("About to broadcast, source = ROB " + to_string(bus.source), 3);
+            msg_log("About to broadcast, source ROB = " + to_string(bus.source), 3);
             front = (++front)%Q_LEN;
         }
     }
@@ -89,7 +81,7 @@ FU_Q::FU_Q()
     Q_lock = PTHREAD_MUTEX_INITIALIZER;
 }
 
-const FU_QEntry* FU_Q::enQ(opCode c, valType rt, int d, memCell *r, memCell *op1, memCell *op2, int offst, bool* busy)
+const FU_QEntry* FU_Q::enQ(opCode c, int d, memCell *r, memCell *op1, memCell *op2, LSQEntry *_lsqe, int offst, bool* busy)
 {
     pthread_mutex_lock(&Q_lock);
     if ((rear+1)%Q_LEN == front)
@@ -105,12 +97,12 @@ const FU_QEntry* FU_Q::enQ(opCode c, valType rt, int d, memCell *r, memCell *op1
         queue[(Q_LEN+i)%Q_LEN] = queue[(Q_LEN+i-1)%Q_LEN];
     index = (front+pos)%Q_LEN;
     queue[index].code = c;
-    queue[index].rtType = rt;
     queue[index].dest = d;
     queue[index].res = r;
     queue[index].oprnd1 = op1;
     queue[index].oprnd2 = op2;
     queue[index].offset = offst;
+    queue[index].lsqe = _lsqe;
     queue[index].done = false;
     queue[index].busy = busy;
     pthread_mutex_unlock(&Q_lock);
@@ -200,7 +192,7 @@ A:      at_rising_edge(next_vdd);
                     {
                         task.res->i = task.oprnd1->i + task.oprnd2->i;
                         msg_log("CDB enqueued, ROB = " + to_string(task.dest), 3);
-                        fCDB.enQ(INTGR, task.res, task.dest);
+                        fCDB.enQ(task.res, task.dest);
                     }
                     task.done = true;
                     break;
@@ -276,7 +268,7 @@ void flpAdder::FU_automat()
         }
         shift(task, shift_out);
         if (shift_out.res)
-            fCDB.enQ(FLTP, shift_out.res, shift_out.dest);
+            fCDB.enQ(shift_out.res, shift_out.dest);
         at_falling_edge(next_vdd);
     }
 }
@@ -344,7 +336,7 @@ void flpMtplr::FU_automat()
         }
         shift(task, shift_out);
         if (shift_out.res)
-            fCDB.enQ(FLTP, shift_out.res, shift_out.dest);
+            fCDB.enQ(shift_out.res, shift_out.dest);
         at_falling_edge(next_vdd);
     }
 }
@@ -387,24 +379,27 @@ A:      at_rising_edge(next_vdd);
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
             {
-                msg_log("Calculating address "+to_string(task.oprnd1->i)+" + "+to_string(task.offset), 3);
+                msg_log("Calculating address "+to_string(task.oprnd1->i)+" + "+to_string(task.offset) + ", ROB = " + to_string(task.dest), 3);
+                at_falling_edge(next_vdd);
                 if (i == CPU_cfg->ld_str->exe_time - 1)
                 {
-                    int addr = task.oprnd1->i + task.offset;
-                    if (task.code == SD)
-                        *task.busy = false;
-                    at_falling_edge(next_vdd);
-                    try {main_mem.enQ(task.dest, task.code, task.rtType, addr, task.oprnd2);}
-                    catch(const int e){err_log("Exception = "+to_string(e));}
+                    task.lsqe->addr = task.oprnd1->i + task.offset;
+                    if (task.lsqe->addr < 0)
+                        err_log("Calculated address is negative... ROB = " + to_string(task.dest));
                     if (task.code == SD)
                     {
-                        ROBEntry *R = CPU_ROB->get_entry(task.dest);
-                        R->finished = true;
+                        *task.busy = false;
+                        if (task.lsqe->SD_source == -1)
+                        {
+                            task.lsqe->ready = true;
+                            R->finished = true;
+                        }
                     }
+                    else
+                        task.lsqe->ready = true;
                     task.done = true;
                     goto A;
                 }
-                at_falling_edge(next_vdd);
                 at_rising_edge(next_vdd);
             }
         }
@@ -461,36 +456,28 @@ void init_FUs()
     for (int i = 0; i<CPU_cfg->int_add->fu_num; i++)
     {
         auto tmp = new intAdder();
-        int ret = -1;
-        do {ret = pthread_create(&tmp->handle, NULL, &intAdder_thread_container, tmp);}
-        while (ret != 0);
+        while(pthread_create(&tmp->handle, NULL, &intAdder_thread_container, tmp));
         clk_wait_list.push_back(&tmp->next_vdd);
         iAdder.push_back(tmp);
     }
     for (int i = 0; i<CPU_cfg->fp_add->fu_num; i++)
     {
         auto tmp = new flpAdder();
-        int ret = -1;
-        do {ret = pthread_create(&tmp->handle, NULL, &flpAdder_thread_container, tmp);}
-        while (ret != 0);
+        while(pthread_create(&tmp->handle, NULL, &flpAdder_thread_container, tmp));
         clk_wait_list.push_back(&tmp->next_vdd);
         fAdder.push_back(tmp);
     }
     for (int i = 0; i<CPU_cfg->fp_mul->fu_num; i++)
     {
         auto tmp = new flpMtplr();
-        int ret = -1;
-        do {ret = pthread_create(&tmp->handle, NULL, &flpMlptr_thread_container, tmp);}
-        while (ret != 0);
+        while(pthread_create(&tmp->handle, NULL, &flpMlptr_thread_container, tmp));
         clk_wait_list.push_back(&tmp->next_vdd);
         fMtplr.push_back(tmp);
     }
     for (int i = 0; i<CPU_cfg->ld_str->fu_num; i++)
     {
         auto tmp = new ldsdUnit();
-        int ret = -1;
-        do {ret = pthread_create(&tmp->handle, NULL, &ldsdUnit_thread_container, tmp);}
-        while (ret != 0);
+        while(pthread_create(&tmp->handle, NULL, &ldsdUnit_thread_container, tmp));
         clk_wait_list.push_back(&tmp->next_vdd);
         lsUnit.push_back(tmp);
     }

@@ -55,6 +55,7 @@ class ROB
         int add_entry(string n, string r, opCode c);
         void ptr_advance();
         int get_front();
+        int get_rear();
         void ROB_automate();
 };
 

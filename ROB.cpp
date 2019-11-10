@@ -42,6 +42,11 @@ int ROB::get_front()
     return front;
 }
 
+int ROB::get_rear()
+{
+    return rear;
+}
+
 int ROB::add_entry(string n, string d, opCode c)
 {
     if ((rear+1)%size == front)
@@ -65,7 +70,7 @@ void ROB::ROB_automate()
     while (true)
     {
         at_rising_edge(next_vdd);
-        if (front != rear && buf[front].finished)
+        if (front != rear && buf[front].finished && buf[front].code != SD)
         {
             string rName = buf[front].regName;
             msg_log("Commit " + rName + " = " + to_string(rName[0]=='R'? buf[front].value.i : buf[front].value.f) + " ROB = " + to_string(front), 2);
@@ -78,14 +83,15 @@ void ROB::ROB_automate()
                 reg.set(rName, buf[front].value);
             }
             instr_timeline_output(&buf[front]);
+            at_falling_edge(next_vdd);
             ptr_advance();
             msg_log("ROB pointer moved to: " + to_string(front), 3);
-            at_falling_edge(next_vdd);
         }
         else
         {
-            if (front == rear && instr_Q->finished())
-                sys_clk.end_prog();
+            if (front == rear)
+                if (instr_Q->finished())
+                    sys_clk.end_instr();
             else
                 msg_log("ROB waiting for entry (" + to_string(front) + ") to finish", 3);
             at_falling_edge(next_vdd);
@@ -105,7 +111,6 @@ void init_CPU_ROB()
     if (CPU_ROB)
         delete CPU_ROB;
     CPU_ROB = new ROB(*(CPU_cfg->ROB_num));
-    int ret = 1;
-    while(ret) ret = pthread_create(&CPU_ROB->handle, NULL, &ROB_thread_container, CPU_ROB);
+    while(pthread_create(&CPU_ROB->handle, NULL, &ROB_thread_container, CPU_ROB));
     clk_wait_list.push_back(&CPU_ROB->next_vdd);
 }

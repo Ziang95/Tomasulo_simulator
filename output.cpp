@@ -32,7 +32,7 @@ void* output_automat(void *args)
     {
         at_rising_edge(next_vdd);
         at_falling_edge(next_vdd);
-        if (sys_clk.get_prog_ended())
+        if (sys_clk.is_instr_ended() && sys_clk.is_mem_ended())
         {
             for (auto s : CPU_output_Q)
                 cout<<s<<endl;
@@ -63,8 +63,6 @@ void init_output_unit()
     next_vdd = 0;
     CPU_output_Q.push_back("\n");
     CPU_output_Q.push_back("Instructions:\t\tISS\tEXE\tMEM\tWB\tCOMMMIT");
-    int ret = -1;
-    do {ret = pthread_create(&handle, NULL, &output_automat, NULL);}
-    while (ret != 0);
+    while(pthread_create(&handle, NULL, &output_automat, NULL));
     clk_wait_list.push_back(&next_vdd);
 }

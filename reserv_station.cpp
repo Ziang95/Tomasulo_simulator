@@ -3,6 +3,7 @@
 
 extern config *CPU_cfg;
 extern clk_tick sys_clk;
+extern memory main_mem;
 extern vector<int*> clk_wait_list;
 extern FU_CDB fCDB;
 extern ROB *CPU_ROB;
@@ -20,14 +21,14 @@ void resStation::set_code(opCode c)
     code = c;
 }
 
+void resStation::set_lsqE(LSQEntry *e)
+{
+    lsqE = e;
+}
+
 memCell resStation::get_res()
 {
     return rest;
-}
-
-void resStation::set_ret_type(valType rt)
-{
-    retType = rt;
 }
 
 void resStation::set_rest(memCell res)
@@ -35,23 +36,33 @@ void resStation::set_rest(memCell res)
     rest = res;
 }
 
-bool resStation::fill_rs(int _dest, int _Qj, int _Qk, memCell _Vj, memCell _Vk, int _offset, bool _sub)
+bool resStation::fill_rs(int _dest_robi, const instr* _instr, int _Qj, int _Qk, memCell _Vj, memCell _Vk)
 {
-    sub = _sub;
+    sub = _instr->code == SUB || _instr->code == SUB_D;
     busy = true;
-    dest = _dest;
+    dest = _dest_robi;
+    code = _instr->code;
     Qj = _Qj;
     Qk = _Qk;
-    offset = _offset;
+    offset = _instr->offset;
     Vj = _Vj;
     Vk = _Vk;
     Rj = Qj<0? true:false;
     Rk = Qk<0? true:false;
     to_start = Rj&&Rk? false:true;
+    if (code == LD)
+        lsqE = main_mem.LD_enQ(dest, -1);
+    else if (code == SD)
+    {
+        memCell SD_source;
+        int SD_source_rob = -1;
+        get_reg_or_rob(_instr->dest, SD_source_rob, SD_source);
+        lsqE = main_mem.SD_enQ(dest, SD_source_rob, -1, SD_source);
+    }
     if (!to_start)
     {
         msg_log("Operands ready, sending to FU, dest ROB = " + to_string(dest), 2);
-        prnt_Q->enQ(code, retType, dest, &rest, &Vj, &Vk, offset, &busy);
+        prnt_Q->enQ(code, dest, &rest, &Vj, &Vk, lsqE, offset, &busy);
     }
     msg_log("Res Station filled, ROB = " + to_string(dest), 3);
     return true;
@@ -68,7 +79,7 @@ void resStation::reserv_automat()
     bool to_commit;
     while (true)
     {
-A:      at_rising_edge(next_vdd);
+        at_rising_edge(next_vdd);
         if (busy)
         {
             if (fCDB.get_source() == dest)
@@ -81,7 +92,7 @@ A:      at_rising_edge(next_vdd);
                 at_falling_edge(next_vdd);
                 R->finished = true;
                 R->output.wBack = sys_clk.get_prog_cyc();
-                goto A;
+                continue;
             }
             else if (!Rj || !Rk)
             {
@@ -100,7 +111,7 @@ A:      at_rising_edge(next_vdd);
         at_falling_edge(next_vdd);
         if (!Rj || !Rk)
         {
-            msg_log("ROB: " + to_string(dest) + " waiting for operands" + (Rj?"":(" Qj = "+to_string(Qj))) + (Rk?"":(" Qk = "+to_string(Qk))), 3);
+            msg_log("ROB = " + to_string(dest) + " waiting for operands" + (Rj?"":(" Qj = "+to_string(Qj))) + (Rk?"":(" Qk = "+to_string(Qk))), 3);
         }
         if (busy && to_start && Rj && Rk)
         {
@@ -110,7 +121,7 @@ A:      at_rising_edge(next_vdd);
                 Vk.f = sub? -Vk.f : Vk.f;
             else
                 Vk.i = sub? -Vk.i : Vk.i;
-            prnt_Q->enQ(code, retType, dest, &rest, &Vj, &Vk, offset, &busy);
+            prnt_Q->enQ(code, dest, &rest, &Vj, &Vk, lsqE, offset, &busy);
         }
     }
 }
@@ -124,7 +135,6 @@ void* rs_thread_container(void *arg)
 
 void init_resStation(resStation *rs)
 {
-    int ret = 1;
-    while(ret) ret = pthread_create(&(rs->handle), NULL, &rs_thread_container, (void*)rs);
+    while(pthread_create(&(rs->handle), NULL, &rs_thread_container, (void*)rs));
     clk_wait_list.push_back(&rs->next_vdd);
 }

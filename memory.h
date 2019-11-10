@@ -12,7 +12,6 @@ typedef union memCell
 }memCell;
 typedef struct
 {
-    valType type;
     memCell value;
     int source;
 }CDB;
@@ -22,10 +21,9 @@ typedef struct
 typedef struct LSQEntry
 {
     int rob_i;
-    bool done;                          //Indicates whether the entry operation is finished]
+    int SD_source;
     opCode code;                        //Enum type, should be LOAD or STORE
-    valType type;                       //Value type can either be float 
-    memCell* val;                          //Pointer of the value to store FROM of to load TO, can be int* or float*
+    memCell val;                          //Pointer of the value to store FROM of to load TO, can be int* or float*
     int addr;                           //Address to store to or load FROM
     bool ready;
 }LSQEntry;
@@ -36,23 +34,29 @@ class memory
 {
     private:
         memCell *buf;                   //Memory storage buffer, can store either Integer or Float Point value
-        int size;                   //Size of [buf]
-        CDB mem_CDB;
-        int front, rear;                //Control pointers of circular queue [LSQ]
-        bool store(LSQEntry& entry);      //Store the value to the address saved in LSQ entry
-        bool load(LSQEntry& entry);       //Load the value from address saved in LSQ entry
-        mutex_t Q_lock;
+        int size;                       //Size of [buf]
+        int Lfront, Lrear;              //Control pointers of circular queue [Load_Q]
+        int Sfront, Srear;              //Control pointers of circular queue [Stor_Q]
+        bool store(LSQEntry& entry);    //Store the value to the address saved in Load_Q entry
+        bool load(LSQEntry& entry);     //Load the value from address saved in Stor_Q entry
+        mutex_t Q_lock;                 //Prevent race condition in Q modification
     public:
-        int next_vdd;
-        struct LSQEntry LSQ[Q_LEN];        //Load/Store queue
-        pthread_t handle;               //The handle of thread running mem_automat()
+        int mem_next_vdd;               //The mem_automat() registered vdd in sys_clk
+        int SDQ_next_vdd;               //The SDQ_automat() registered vdd in sys_clk
+        struct LSQEntry Load_Q[Q_LEN];  //Load queue
+        struct LSQEntry Stor_Q[Q_LEN];  //Store queue
+        pthread_t mem_handle;           //The handle of thread running mem_automat()
+        pthread_t SDQ_handle;           //The handle of thread running SDQ_automat()
         memory(int sz);                 //Constructor
         ~memory();                      //Destructor
-        bool setMem(valType type, int addr, void* val);
-        const LSQEntry* enQ(int rbi, opCode code, valType type, int addr, memCell *val); //Enqueue function, Should only be called at falling edges
+        bool setMem(valType type, int addr, void* val);             //Set initial mem values
+        LSQEntry* LD_enQ(int rbi, int addr);                        //Enqueue Load_Q, should only be called at falling edges
+        LSQEntry* SD_enQ(int rbi, int Qj, int addr, memCell val);   //Enqueue Stor_Q, should only be called at falling edges
+        void SD_Q_automat();            //Stor_Q maintainer, can be taken as resStation for memory unit
         void mem_automat();             //Memory unit maintainer, clear the load/store queue automatically, iterates infinitly in a thread.
 };
 
+bool is_prev_index(int i, int j, int front, int rear);
 void init_main_mem();
 
 #endif

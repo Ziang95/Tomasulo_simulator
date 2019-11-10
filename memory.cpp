@@ -12,8 +12,8 @@ memory::memory(int sz)
     buf = new memCell[sz];
     memset(buf, 0, sz);
     size = sz;
-    front = rear = 0;
-    mem_CDB.source = -1;
+    Lfront = Lrear = 0;
+    Sfront = Srear = 0;
     Q_lock = PTHREAD_MUTEX_INITIALIZER;
 }
 
@@ -22,99 +22,136 @@ memory::~memory()
     delete []buf;
 }
 
-bool memory::store(LSQEntry& entry) //This function is designed with "being called at rising edge" in mind
+bool memory::store(LSQEntry& entry)
 {
     ROBEntry *R = CPU_ROB->get_entry(entry.rob_i);
-    while (true)
-    {
-        if (CPU_ROB->get_front() >= entry.rob_i)
-            break;
-        at_falling_edge(next_vdd);
-        if (!R->finished)
-            return true;
-        at_rising_edge(next_vdd);
-    }
     R->output.commit = R->output.mem = sys_clk.get_prog_cyc();
-    // instr_timeline_output(R);
-    // CPU_ROB->ptr_advance();
+    instr_timeline_output(R);
+    msg_log("Begin to store value to Addr="+to_string(entry.addr), 3);
     for (int i = 0; ; i++)
     {
         msg_log("Storing value to Addr="+to_string(entry.addr), 3);
         if (i == CPU_cfg->ld_str->mem_time - 1)
             break;
-        at_falling_edge(next_vdd);
-        at_rising_edge(next_vdd);
+        at_falling_edge(mem_next_vdd);
+        if (i == 0)
+            CPU_ROB->ptr_advance();
+        at_rising_edge(mem_next_vdd);
     }
-    if (entry.type == FLTP)
-        buf[entry.addr].f = entry.val->f;
-    else
-        buf[entry.addr].i = entry.val->f;
-    mem_CDB.type = entry.type;
-    mem_CDB.source = entry.addr;
-    mem_CDB.value = buf[entry.addr];
-    entry.done = true;
-    at_falling_edge(next_vdd);
-    msg_log("Value stored, Val="+to_string(entry.type == FLTP?entry.val->f : entry.val->i), 2);
+    buf[entry.addr] = entry.val;
+    at_falling_edge(mem_next_vdd);
+    if (CPU_cfg->ld_str->mem_time == 1)
+        CPU_ROB->ptr_advance();
+    Sfront = (++Sfront)%Q_LEN;
+    msg_log("Value stored ROB = " + to_string(entry.rob_i), 2);
+    if (Sfront == Srear && Lfront == Lrear && sys_clk.is_instr_ended())
+        sys_clk.end_mem();
     return true;
 }
 
-bool memory::load(LSQEntry& entry) //This function is designed with "being called at rising edge" in mind
+bool memory::load(LSQEntry& entry)
 {
     ROBEntry *R = CPU_ROB->get_entry(entry.rob_i);
-    R->output.mem = sys_clk.get_prog_cyc();
-    if (mem_CDB.source == entry.addr)
+    int found = -1;
+    bool your_turn = true;
+    memCell ret;
+    for (int i = Srear; is_prev_index(Sfront, i, Sfront, Srear);)
     {
-        msg_log("Forward store found, forwarding, Addr="+to_string(mem_CDB.source), 3);
-        at_falling_edge(next_vdd);
-        if (entry.type == FLTP)
-            entry.val->f = mem_CDB.value.f;
+        i = (--i)%Q_LEN;
+        if (is_prev_index(Stor_Q[i].rob_i, entry.rob_i, CPU_ROB->get_front(), CPU_ROB->get_rear()))
+        {
+            if (Stor_Q[i].addr == -1)
+            {
+                your_turn = false;
+                break;
+            }
+            else
+            {
+                if (Stor_Q[i].addr == entry.addr && found == -1)
+                {
+                    if (Stor_Q[i].ready)
+                        found = i;
+                    else
+                    {
+                        your_turn = false;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (your_turn)
+    {
+        R->output.mem = sys_clk.get_prog_cyc();
+        if (found >= 0)
+        {
+            msg_log("Forward store found, forwarding, Addr="+to_string(Stor_Q[found].addr), 3);
+            ret = Stor_Q[found].val;
+        }
         else
-            entry.val->i = mem_CDB.value.i;
+        {
+            msg_log("Begin LD, ROB = " + to_string(entry.rob_i), 3);
+            for (int i = 0; ; i++)
+            {
+                if (i == CPU_cfg->ld_str->mem_time - 1)
+                {
+                    ret = buf[entry.addr];
+                    break;
+                }
+                at_falling_edge(mem_next_vdd);
+                at_rising_edge(mem_next_vdd);
+                msg_log("Loading value from Addr="+to_string(entry.addr), 3);
+            }
+        }
+        fCDB.enQ(&ret, entry.rob_i);
+        at_falling_edge(mem_next_vdd);
+        Lfront = (++Lfront)%Q_LEN;
+        msg_log("Value loaded ROB = " + to_string(entry.rob_i), 2);
     }
     else
     {
-        for (int i = 0; ; i++)
-        {
-            msg_log("Loading value from Addr="+to_string(entry.addr), 3);
-            if (i == CPU_cfg->ld_str->mem_time - 1)
-                break;
-            at_falling_edge(next_vdd);
-            at_rising_edge(next_vdd);
-        }
-        if (entry.type == FLTP)
-            *(float*)entry.val = buf[entry.addr].f;
-        else
-            *(int*)entry.val = buf[entry.addr].i;
+        msg_log("Previous SD not ready, caller ROB = " + to_string(Load_Q[Lfront].rob_i), 3);
+        at_falling_edge(mem_next_vdd);
     }
-    fCDB.enQ(entry.type, entry.val, entry.rob_i);
-    entry.done = true;
-    at_falling_edge(next_vdd);
-    msg_log("Value loaded, Val="+to_string(entry.type == FLTP?entry.val->f : entry.val->i), 2);
     return true;
 }
 
-const LSQEntry* memory::enQ(int rbi, opCode code, valType type, int addr, memCell *val)
+LSQEntry* memory::LD_enQ(int rbi, int addr)
 {
-    if (code != SD && code != LD)
-        throw -1;
-    if (addr >= size || addr<0)
-        throw -2;
     pthread_mutex_lock(&Q_lock);
-    if ((rear+1)%Q_LEN == front)
+    if ((Lrear+1)%Q_LEN == Lfront)
     {
         pthread_mutex_unlock(&Q_lock);
-        throw -3;
+        throw -2;
     }
-    int index = rear;
-    rear = (++rear)%Q_LEN;
-    LSQ[index].rob_i = rbi;
-    LSQ[index].addr = addr;
-    LSQ[index].code = code;
-    LSQ[index].type = type;
-    LSQ[index].val = val;
-    LSQ[index].done = false;
+    int index = Lrear;
+    Lrear = (++Lrear)%Q_LEN;
+    Load_Q[index].rob_i = rbi;
+    Load_Q[index].addr = addr;
+    Load_Q[index].code = LD;
+    Load_Q[index].ready = false;
     pthread_mutex_unlock(&Q_lock);
-    return LSQ+index;
+    return Load_Q + index;
+}
+
+LSQEntry* memory::SD_enQ(int rbi, int Qj, int addr, memCell val)
+{
+    pthread_mutex_lock(&Q_lock);
+    if ((Srear+1)%Q_LEN == Sfront)
+    {
+        pthread_mutex_unlock(&Q_lock);
+        throw -1;
+    }
+    int index = Srear;
+    Srear = (++Srear)%Q_LEN;
+    Stor_Q[index].rob_i = rbi;
+    Stor_Q[index].addr = addr;
+    Stor_Q[index].SD_source = Qj;
+    Stor_Q[index].code = LD;
+    Stor_Q[index].val = val;
+    Stor_Q[index].ready = false;
+    pthread_mutex_unlock(&Q_lock);
+    return Stor_Q + index;
 }
 
 bool memory::setMem(valType type, int addr, void* val)
@@ -130,28 +167,67 @@ bool memory::setMem(valType type, int addr, void* val)
     return true;
 }
 
-void memory::mem_automat()
+bool is_prev_index(int i, int j, int front, int rear)
 {
-    next_vdd = 0;
+    if (i == j) return false;
+    if (rear < front)
+    {
+        rear += CPU_ROB->size;
+        i += i<front?CPU_ROB->size:0;
+        j += j<front?CPU_ROB->size:0;
+    }
+    return j - i > 0;
+}
+
+void memory::SD_Q_automat()
+{
+    SDQ_next_vdd = 0;
     while (true)
     {
-        at_rising_edge(next_vdd);
-        if (front != rear)
+        at_rising_edge(SDQ_next_vdd);
+        int CDB_i = fCDB.get_source();
+        for (int i = Sfront; i != Srear;)
         {
-            if (LSQ[front].code == SD)
-                store(LSQ[front]);
-            else
-                load(LSQ[front]);
-            front = (++front)%Q_LEN;
+            if (Stor_Q[i].SD_source == CDB_i)
+            {
+                msg_log("SD queue entry " + to_string(i) + " got the value, source ROB = " + to_string(CDB_i), 3);
+                fCDB.get_val(&Stor_Q[i].val);
+                Stor_Q[i].SD_source = -1;
+            }
+            i = (++i)%Q_LEN;
         }
+        at_falling_edge(SDQ_next_vdd);
+        for (int i = Sfront; i != Srear;)
+        {
+            if (Stor_Q[i].addr != -1)
+            {
+                Stor_Q[i].ready = true;
+                msg_log("Stor_Q entry i = " + to_string(i) + " ready, ROB = " + to_string(Stor_Q[Sfront].rob_i), 3);
+            }
+            i = (++i)%Q_LEN;
+        }
+    }
+}
+
+void memory::mem_automat()
+{
+    mem_next_vdd = 0;
+    while (true)
+    {
+        at_rising_edge(mem_next_vdd);
+        if (Sfront != Srear && Stor_Q[Sfront].ready && CPU_ROB->get_front() == Stor_Q[Sfront].rob_i)
+            store(Stor_Q[Sfront]);
+        else if(Lfront != Lrear && Load_Q[Lfront].ready)
+            load(Load_Q[Lfront]);
         else
-            at_falling_edge(next_vdd);
+            at_falling_edge(mem_next_vdd);
     }
 }
 
 void init_main_mem()
 {
-    int ret = 1;
-    while(ret) ret = pthread_create(&main_mem.handle, NULL, [](void *arg)->void*{main_mem.mem_automat(); return NULL;}, NULL);
-    clk_wait_list.push_back(&main_mem.next_vdd);
+    while(pthread_create(&main_mem.mem_handle, NULL, [](void *arg)->void*{main_mem.mem_automat(); return NULL;}, NULL));
+    while(pthread_create(&main_mem.SDQ_handle, NULL, [](void *arg)->void*{main_mem.SD_Q_automat(); return NULL;}, NULL));
+    clk_wait_list.push_back(&main_mem.mem_next_vdd);
+    clk_wait_list.push_back(&main_mem.SDQ_next_vdd);
 }

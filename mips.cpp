@@ -32,13 +32,12 @@ int main(int argc, char** argv)
         debug_level = stoi(argv[2]);
     if (!read_config_instrs(string(argv[1])))
         return -1;
-    
-    init_CPU_ROB();//
-    init_FUs();//
-    init_FU_CDB();//
-    init_main_mem();//
-    init_issue_unit();//
-    init_output_unit();//
+    init_CPU_ROB();
+    init_FUs();
+    init_FU_CDB();
+    init_main_mem();
+    init_issue_unit();
+    init_output_unit();
     msg_log("Threads count is: "+to_string(clk_wait_list.size()), 0);
     msg_log("instr buffer size is: " + to_string(instr_Q->size), 3);
     start_sys_clk();
