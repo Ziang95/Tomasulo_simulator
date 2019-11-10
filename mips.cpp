@@ -3,6 +3,7 @@
 config *CPU_cfg = nullptr;
 instr_queue *instr_Q = nullptr;
 ROB *CPU_ROB = nullptr;
+nopBublr* nopBub = nullptr;
 pthread_t iss_unit;
 vector<intAdder*> iAdder;
 vector<flpAdder*> fAdder;

@@ -14,6 +14,7 @@ sub.d F8, F6, F2
 add.d F10, F1, F6
 add.d F5, F7, F9
 addi R6, R7, 7
+nop
 mult.d F8, F15, F5
 add R1, R9, R10
 add R11, R12, R13

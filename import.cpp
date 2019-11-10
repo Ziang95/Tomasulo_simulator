@@ -11,27 +11,29 @@ opCode get_opcode(string opName)
     for (char &c : opName)
         c = toupper(c);
     if (opName == "ADD")
-        return opCode::ADD;
+        return ADD;
     else if (opName == "ADD.D")
-        return opCode::ADD_D;
+        return ADD_D;
     else if (opName == "ADDI")
-        return opCode::ADDI;
+        return ADDI;
     else if (opName == "SUB")
-        return opCode::SUB;
+        return SUB;
     else if (opName == "SUB.D")
-        return opCode::SUB_D;
+        return SUB_D;
     else if (opName == "MULT.D")
-        return opCode::MUL_D;
+        return MUL_D;
     else if (opName == "BEQ")
-        return opCode::BEQ;
+        return BEQ;
     else if (opName == "BNE")
-        return opCode::BNE;
+        return BNE;
     else if (opName == "LD")
-        return opCode::LD;
+        return LD;
     else if (opName == "SD")
-        return opCode::SD;
+        return SD;
+    else if (opName == "NOP")
+        return NOP;
     else
-        return opCode::ERR;
+        return ERR;
 }
 
 bool read_config_instrs(string path)
@@ -255,10 +257,17 @@ bool read_config_instrs(string path)
                 tmp_i.offset = stoi(ofst.substr(0, lb));
                 break;
             }
+            case NOP:
+            {
+                tmp_i.code = NOP;
+                break;
+            }
             case ERR:
+            {
                 err_log("Instruction opCode error, please check input file " + path);
                 return false;
                 break;
+            }
             default:
                 break;
             }

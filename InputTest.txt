@@ -12,6 +12,7 @@ addi R1, R2, 6
 addi R4, R2, 8
 mult.d F6, F5, F8
 add R7, R10, R5
+nop
 add R12, R13, R14
 ld F2, 15(R3)
 add R14, R15, R16

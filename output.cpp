@@ -15,7 +15,9 @@ class ROBEntry;
 void instr_timeline_output(ROBEntry *R)
 {
     string t = R->name;
-    if (t.size()/8 < 2)
+    if (t.size()/8 < 1)
+        t += "\t\t";
+    else if (t.size()/8 < 2)
         t += "\t";
     t += "\t" + to_string(R->output.issue);
     t += "\t" + to_string(R->output.exe);

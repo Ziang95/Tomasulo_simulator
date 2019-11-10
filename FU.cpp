@@ -10,6 +10,7 @@ extern vector<intAdder*> iAdder;
 extern vector<flpAdder*> fAdder;
 extern vector<flpMtplr*> fMtplr;
 extern vector<ldsdUnit*> lsUnit;
+extern nopBublr* nopBub;
 
 FU_CDB::FU_CDB()
 {
@@ -407,6 +408,44 @@ A:      at_rising_edge(next_vdd);
     }
 }
 
+nopBublr::nopBublr()
+{
+    bubble = nullptr;
+    for (int i = 0; i<3; i++)
+        shifter[i] = nullptr;
+}
+
+void nopBublr::generate_bubble(int ROB_i)
+{
+    bubble = CPU_ROB->get_entry(ROB_i);
+}
+
+void nopBublr::FU_automat()
+{
+    next_vdd = 0;
+    while (true)
+    {
+        at_rising_edge(next_vdd);
+        for (int i = 2; i>0; i--)
+            shifter[i] = shifter[i-1];
+        shifter[0] = bubble;
+        bubble = nullptr;
+        if (shifter[0])
+            shifter[0]->output.exe = sys_clk.get_prog_cyc();
+        if (shifter[1])
+        {
+            shifter[1]->output.wBack = sys_clk.get_prog_cyc();
+            shifter[1]->wrtnBack = true;
+        }
+        if (shifter[2])
+        {
+            shifter[2]->output.commit = sys_clk.get_prog_cyc();
+            shifter[2]->finished = true;
+        }
+        at_falling_edge(next_vdd);
+    }
+}
+
 void* intAdder_thread_container(void *arg)
 {
     auto p = (intAdder*) arg;
@@ -435,6 +474,13 @@ void* ldsdUnit_thread_container(void *arg)
     return nullptr;
 }
 
+void* nopBublr_thread_container(void *arg)
+{
+    auto p = (nopBublr*) arg;
+    p->FU_automat();
+    return nullptr;
+}
+
 void init_FUs()
 {
     if (iAdder.size())
@@ -449,6 +495,8 @@ void init_FUs()
     if (lsUnit.size())
         for (auto &p : lsUnit)
             delete p;
+    if (nopBub)
+        delete nopBub;
     iAdder = {};
     fAdder = {};
     fMtplr = {};
@@ -481,4 +529,7 @@ void init_FUs()
         clk_wait_list.push_back(&tmp->next_vdd);
         lsUnit.push_back(tmp);
     }
+    nopBub = new nopBublr();
+    while(pthread_create(&nopBub->handle, NULL, &nopBublr_thread_container, nopBub));
+    clk_wait_list.push_back(&nopBub->next_vdd);
 }

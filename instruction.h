@@ -14,6 +14,7 @@ typedef enum opCode
     MUL_D,
     LD, SD,
     BNE, BEQ,
+    NOP,
     ERR
 }opCode;
 

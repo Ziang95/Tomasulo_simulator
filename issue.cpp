@@ -9,6 +9,7 @@ extern vector<flpMtplr*> fMtplr;
 extern vector<ldsdUnit*> lsUnit;
 extern registor reg;
 extern ROB* CPU_ROB;
+extern nopBublr* nopBub;
 extern unordered_map <string, int> RAT;
 extern instr_queue *instr_Q;
 
@@ -220,6 +221,22 @@ void *issue_automat(void *arg)
                     else
                         instr_Q->ptr_advance();
                 }
+                break;
+            }
+            case NOP:
+            {
+                int dest;
+                try
+                {
+                    dest = CPU_ROB->add_entry(tmp->name, "NO_RET", tmp->code);
+                }
+                catch(const int e)
+                {
+                    err_log("ROB is full");
+                    break;
+                }
+                instr_Q->ptr_advance();
+                nopBub->generate_bubble(dest);
                 break;
             }
             default:

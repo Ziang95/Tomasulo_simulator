@@ -36,10 +36,10 @@ class FU_CDB{
         int next_vdd;
         FU_CDB();
         pthread_t handle;
-        bool enQ(memCell *v, int s);
-        int get_source();                      //Called at rising edges
-        bool get_val(memCell *v);                 //Called at rising edges
-        void CDB_automat();
+        bool enQ(memCell *v, int s);                //Called at falling edges
+        int get_source();                           //Called at rising edges
+        bool get_val(memCell *v);                   //Called at rising edges
+        void CDB_automat();                         //CDB maintainer
 };
 
 void init_FU_CDB();
@@ -107,6 +107,21 @@ class ldsdUnit: public functionUnit
     public:
         ldsdUnit();
         ~ldsdUnit();
+        void FU_automat();
+};
+
+struct ROBEntry;
+
+class nopBublr
+{
+    private:
+        ROBEntry* bubble;
+        ROBEntry* shifter[3];
+    public:
+        pthread_t handle;
+        int next_vdd;
+        nopBublr();
+        void generate_bubble(int ROB_i);
         void FU_automat();
 };
 
