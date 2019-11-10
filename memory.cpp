@@ -44,8 +44,6 @@ bool memory::store(LSQEntry& entry)
         CPU_ROB->ptr_advance();
     Sfront = (++Sfront)%Q_LEN;
     msg_log("Value stored ROB = " + to_string(entry.rob_i), 2);
-    if (Sfront == Srear && Lfront == Lrear && sys_clk.is_instr_ended())
-        sys_clk.end_mem();
     return true;
 }
 
@@ -215,6 +213,8 @@ void memory::mem_automat()
     while (true)
     {
         at_rising_edge(mem_next_vdd);
+        if (Sfront == Srear && Lfront == Lrear && sys_clk.is_instr_ended())
+            sys_clk.end_mem();
         if (Sfront != Srear && Stor_Q[Sfront].ready && CPU_ROB->get_front() == Stor_Q[Sfront].rob_i)
             store(Stor_Q[Sfront]);
         else if(Lfront != Lrear && Load_Q[Lfront].ready)

@@ -9,7 +9,7 @@ CDB buffer entries = 1
 R7=9, R17=9, R16=8, F1=6, F2=9, F3=2, F4=9, F14=8, F6=7, F7=5, F9=6, F8=6, F10=8, F13= 5
 Mem[4]=3.0, Mem[8]=2.0, Mem[12]=1.0, Mem[24]=6.0, Mem[28]=5.0, Mem[32]=4.0
 Add R3, R1,R0
-Addi R4, R1,#1
+Addi R4, R1, 1
 Add.d F3, F2,F1
 Sub.d F4, F2,F1
 Mult.d F5, F2, F1

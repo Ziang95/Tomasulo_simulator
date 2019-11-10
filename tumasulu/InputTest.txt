@@ -4,7 +4,7 @@ FP adder 3 4 1
 FP multiplier 2 15 1
 Load/store unit 5 1 5 1
 ROB entries = 128
-CDB buffer entries = 1
+
 R1=12, R2=32, R3=10, R4=5 , R6=8 ,R7=9 , R9=4 , R10=2 , R11=2 , R12=5 , R13=6 , F0=6.1 ,F2=2.5 , F4=4 , F5=5 , F6=3 ,F7=8 , F8=12 ,F9=15 , F10=18 ,F15=5.3, F20=2.0 
 Mem[4]=3.0, Mem[8]=2.0, Mem[12]=1.0, Mem[24]=6.0, Mem[28]=5.0, Mem[32]=4.0
 ld F6, 4(R2)
