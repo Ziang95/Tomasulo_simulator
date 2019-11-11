@@ -2,16 +2,19 @@
 
 extern pthread_t iss_unit;
 extern clk_tick sys_clk;
-extern vector<int*> clk_wait_list;
+extern ROB* CPU_ROB;
+extern registor *reg;
+extern unordered_map <string, int> RAT;
+extern instr_queue *instr_Q;
+extern BTB CPU_BTB;
+
 extern vector<intAdder*> iAdder;
 extern vector<flpAdder*> fAdder;
 extern vector<flpMtplr*> fMtplr;
 extern vector<ldsdUnit*> lsUnit;
-extern registor reg;
-extern ROB* CPU_ROB;
 extern nopBublr* nopBub;
-extern unordered_map <string, int> RAT;
-extern instr_queue *instr_Q;
+
+extern vector<int*> clk_wait_list;
 
 static int next_vdd;
 
@@ -28,7 +31,7 @@ void get_reg_or_rob(string regName, int &Q, memCell &V)
             Q = tmp;
     }
     else
-        reg.get(regName, V);
+        reg->get(regName, V);
 }
 
 void *issue_automat(void *arg)
@@ -45,7 +48,7 @@ void *issue_automat(void *arg)
         if (!instr_Q->finished())
             tmp = instr_Q->getInstr();
         at_falling_edge(next_vdd);
-        if (tmp)
+        if (tmp && !instr_Q->squash)
         {
             msg_log("Issuing code: " + tmp->name, 2);
             resStation *avai = nullptr;
@@ -208,16 +211,17 @@ void *issue_automat(void *arg)
                         err_log("ROB is full");
                         break;
                     }
+                    ROBEntry *R = CPU_ROB->get_entry(dest);
+                    R->instr_i = instr_Q->get_head();
                     avai->set_code(tmp->code);
                     avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
-                    while (avai->get_state())
+                    if (BTBEntry* predctr = CPU_BTB.getEntry(R->instr_i))
                     {
-                        at_rising_edge(next_vdd);
-                        at_falling_edge(next_vdd);
+                        if (predctr->taken)
+                            instr_Q->move_ptr(predctr->target);
+                        else
+                            instr_Q->ptr_advance();
                     }
-                    memCell outcome = avai->get_res();
-                    if (outcome.i)
-                        instr_Q->ptr_branch(tmp->offset);
                     else
                         instr_Q->ptr_advance();
                 }

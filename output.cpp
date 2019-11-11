@@ -5,7 +5,8 @@ using namespace std;
 extern vector<int*> clk_wait_list;
 extern vector<string> CPU_output_Q;
 extern clk_tick sys_clk;
-extern registor reg;
+extern registor *reg;
+extern memory main_mem;
 
 static int next_vdd = 0;
 static pthread_t handle;
@@ -39,22 +40,34 @@ void* output_automat(void *args)
             for (auto s : CPU_output_Q)
                 cout<<s<<endl;
             cout<<endl;
-            string regs = "";
             memCell m;
-            stringstream tmp;
-            for (int i = 0; i<INT_REG_NUM; i++)
+            cout<<"INT_REG:\t\t\t\t\tFLP_REG:"<<endl;
+            for (int i = 0; i<REG_NUM/2; i++)
             {
-                reg.get("R"+to_string(i), m);
-                regs += to_string(m.i) + ", ";
+                stringstream tmp;
+                reg->get("R"+to_string(2*i), m);
+                cout<<setw(3)<<"R"+to_string(2*i)<<"="<<m.i<<(m.i>9999?"\t":"\t\t");
+                if (2*i + 1 < REG_NUM)
+                {
+                    reg->get("R"+to_string(2*i), m);
+                    cout<<setw(3)<<"R"+to_string(i*2+1)<<"="<<m.i<<(m.i>9999?"\t":"\t\t");
+                }
+                reg->get("F"+to_string(2*i), m);
+                cout<<"\t"<<setw(3)<<"F"+to_string(2*i)<<"="<<fixed<<setprecision(2)<<m.f<<"\t";
+                if (2*i + 1 < REG_NUM)
+                {
+                    reg->get("F"+to_string(2*i+1), m);
+                    cout<<setw(3)<<"F"+to_string(2*i+1)<<"="<<fixed<<setprecision(2)<<m.f<<"\t";
+                }
+                cout<<endl;
             }
-            cout<<regs<<endl<<endl;
-            for (int i = 0; i<FP_REG_NUM; i++)
+            cout<<endl;
+            for (int i = 0; i<MEM_LEN; i++)
             {
-                reg.get("F"+to_string(i), m);
-                tmp<<std::fixed<<std::setprecision(2)<<m.f;
-                tmp<<", ";
+                if (abs(main_mem.getMem(i).f) > 0.001)
+                    cout<<"Mem["<<i<<"]="<<fixed<<setprecision(2)<<main_mem.getMem(i).f<<", ";
             }
-            cout<<tmp.str()<<endl;
+            cout<<endl<<endl;;
             return nullptr;
         }
     }

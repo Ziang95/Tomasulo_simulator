@@ -39,7 +39,8 @@ class memory
         int Sfront, Srear;              //Control pointers of circular queue [Stor_Q]
         bool store(LSQEntry& entry);    //Store the value to the address saved in Load_Q entry
         bool load(LSQEntry& entry);     //Load the value from address saved in Stor_Q entry
-        mutex_t Q_lock;                 //Prevent race condition in Q modification
+        mutex_t LDQ_lock;               //Prevent race condition in Q modification
+        mutex_t SDQ_lock;
     public:
         int mem_next_vdd;               //The mem_automat() registered vdd in sys_clk
         int SDQ_next_vdd;               //The SDQ_automat() registered vdd in sys_clk
@@ -50,8 +51,10 @@ class memory
         memory(int sz);                 //Constructor
         ~memory();                      //Destructor
         bool setMem(valType type, int addr, void* val);             //Set initial mem values
+        memCell getMem(int addr);
         LSQEntry* LD_enQ(int rbi, int addr);                        //Enqueue Load_Q, should only be called at falling edges
         LSQEntry* SD_enQ(int rbi, int Qj, int addr, memCell val);   //Enqueue Stor_Q, should only be called at falling edges
+        void squash(int ROB_i);
         void SD_Q_automat();            //Stor_Q maintainer, can be taken as resStation for memory unit
         void mem_automat();             //Memory unit maintainer, clear the load/store queue automatically, iterates infinitly in a thread.
 };

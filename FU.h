@@ -39,6 +39,7 @@ class FU_CDB{
         bool enQ(memCell *v, int s);                //Called at falling edges
         int get_source();                           //Called at rising edges
         bool get_val(memCell *v);                   //Called at rising edges
+        void squash(int ROB_i);                     //Called at falling edges
         void CDB_automat();                         //CDB maintainer
 };
 
@@ -53,6 +54,7 @@ class FU_Q
     public:
         FU_Q();
         const FU_QEntry* enQ(opCode c, int d, memCell *r, memCell *op1, memCell *op2, LSQEntry* _lsqe, int offst, bool *busy);
+        void squash(int ROB_i);             //Called at falling edges
         FU_QEntry* deQ();
 };
 
@@ -67,6 +69,7 @@ class functionUnit
         FU_QEntry task;
         vector<resStation*> rs;
         functionUnit();
+        void squash(int ROB_i);
         int next_vdd;
         pthread_t handle;
         virtual void FU_automat(){};
@@ -112,11 +115,17 @@ class ldsdUnit: public functionUnit
 
 struct ROBEntry;
 
+typedef struct bubbEntry
+{
+    int ROB_i;
+    ROBEntry* ROB_E;
+}bubbEntry;
+
 class nopBublr
 {
     private:
-        ROBEntry* bubble;
-        ROBEntry* shifter[3];
+        bubbEntry bubble;
+        bubbEntry shifter[3];
     public:
         pthread_t handle;
         int next_vdd;

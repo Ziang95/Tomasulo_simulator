@@ -2,13 +2,14 @@
 
 extern clk_tick sys_clk;
 
-registor::registor(int iRegSize, int fRegSize)
+registor::registor(int _RegSize):RegSize(_RegSize)
 {
-    intReg = new int[iRegSize];
-    memset(intReg, 0, iRegSize);
+    intReg = new int[_RegSize];
+    memset(intReg, 0, _RegSize);
     intReg[0] = 0;
-    flpReg = new float[fRegSize];
-    memset(flpReg, 0, fRegSize);
+    flpReg = new float[_RegSize];
+    for (int i = 0; i<RegSize; i++)
+        flpReg[i] = 0.;
 }
 
 registor::~registor()
@@ -20,7 +21,7 @@ registor::~registor()
 bool registor::get(string name, memCell &ret)
 {
     int index = stoi(name.substr(1, name.size() - 1));
-    if (index >= INT_REG_NUM)
+    if (index >= RegSize)
     {
         err_log(name + ": Reg access out of range");
         return false;
@@ -40,7 +41,7 @@ bool registor::get(string name, memCell &ret)
 bool registor::set(string name, memCell val)
 {
     int index = stoi(name.substr(1, name.size() - 1));
-    if (index >= INT_REG_NUM)
+    if (index >= RegSize)
     {
         err_log(name + ": Reg access out of range");
         return false;
@@ -66,9 +67,9 @@ bool registor::set(string name, memCell val)
 
 void registor::clear()
 {
-    for (int i = 0; i<INT_REG_NUM; i++)
+    for (int i = 0; i<RegSize; i++)
         intReg[i] = 0;
-    for (int i = 0; i<FP_REG_NUM; i++)
+    for (int i = 0; i<RegSize; i++)
         flpReg[i] = 0;
     return;
 }

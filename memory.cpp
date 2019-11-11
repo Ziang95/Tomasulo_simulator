@@ -10,11 +10,12 @@ extern ROB *CPU_ROB;
 memory::memory(int sz)
 {
     buf = new memCell[sz];
-    memset(buf, 0, sz);
+    for (int i = 0; i < sz; i++)
+        buf[i].f = 0.;
     size = sz;
     Lfront = Lrear = 0;
     Sfront = Srear = 0;
-    Q_lock = PTHREAD_MUTEX_INITIALIZER;
+    LDQ_lock = SDQ_lock = PTHREAD_MUTEX_INITIALIZER;
 }
 
 memory::~memory()
@@ -116,10 +117,10 @@ bool memory::load(LSQEntry& entry)
 
 LSQEntry* memory::LD_enQ(int rbi, int addr)
 {
-    pthread_mutex_lock(&Q_lock);
+    pthread_mutex_lock(&LDQ_lock);
     if ((Lrear+1)%Q_LEN == Lfront)
     {
-        pthread_mutex_unlock(&Q_lock);
+        pthread_mutex_unlock(&LDQ_lock);
         throw -2;
     }
     int index = Lrear;
@@ -128,16 +129,16 @@ LSQEntry* memory::LD_enQ(int rbi, int addr)
     Load_Q[index].addr = addr;
     Load_Q[index].code = LD;
     Load_Q[index].ready = false;
-    pthread_mutex_unlock(&Q_lock);
+    pthread_mutex_unlock(&LDQ_lock);
     return Load_Q + index;
 }
 
 LSQEntry* memory::SD_enQ(int rbi, int Qj, int addr, memCell val)
 {
-    pthread_mutex_lock(&Q_lock);
+    pthread_mutex_lock(&SDQ_lock);
     if ((Srear+1)%Q_LEN == Sfront)
     {
-        pthread_mutex_unlock(&Q_lock);
+        pthread_mutex_unlock(&SDQ_lock);
         throw -1;
     }
     int index = Srear;
@@ -148,7 +149,7 @@ LSQEntry* memory::SD_enQ(int rbi, int Qj, int addr, memCell val)
     Stor_Q[index].code = LD;
     Stor_Q[index].val = val;
     Stor_Q[index].ready = false;
-    pthread_mutex_unlock(&Q_lock);
+    pthread_mutex_unlock(&SDQ_lock);
     return Stor_Q + index;
 }
 
@@ -165,6 +166,11 @@ bool memory::setMem(valType type, int addr, void* val)
     return true;
 }
 
+memCell memory::getMem(int addr)
+{
+    return buf[addr];
+}
+
 bool is_prev_index(int i, int j, int front, int rear)
 {
     if (i == j) return false;
@@ -177,12 +183,40 @@ bool is_prev_index(int i, int j, int front, int rear)
     return j - i > 0;
 }
 
+void memory::squash(int ROB_i)
+{
+    int R_f = CPU_ROB->get_front();
+    int R_r = CPU_ROB->get_rear();
+    pthread_mutex_lock(&LDQ_lock);
+    for (int i = Lrear; ;)
+    {
+        int j = (i-1)%Q_LEN;
+        if (j == Lfront || !is_prev_index(ROB_i, Load_Q[j].rob_i, R_f, R_r))
+            break;
+        Lrear = j;
+        i = (--i)%Q_LEN;
+    }
+    pthread_mutex_unlock(&LDQ_lock);
+    pthread_mutex_lock(&SDQ_lock);
+    for (int i = Srear; ;)
+    {
+        int j = (i-1)%Q_LEN;
+        if (j == Srear || !is_prev_index(ROB_i, Stor_Q[j].rob_i, R_f, R_r))
+            break;
+        Srear = j;
+        i = (--i)%Q_LEN;
+    }
+    pthread_mutex_unlock(&SDQ_lock);
+    msg_log("After squash, Store front = " + to_string(Sfront) + " rear = " + to_string(Srear), 3);
+}
+
 void memory::SD_Q_automat()
 {
     SDQ_next_vdd = 0;
     while (true)
     {
         at_rising_edge(SDQ_next_vdd);
+        pthread_mutex_lock(&SDQ_lock);
         int CDB_i = fCDB.get_source();
         for (int i = Sfront; i != Srear;)
         {
@@ -194,6 +228,7 @@ void memory::SD_Q_automat()
             }
             i = (++i)%Q_LEN;
         }
+        pthread_mutex_unlock(&SDQ_lock);
         at_falling_edge(SDQ_next_vdd);
         for (int i = Sfront; i != Srear;)
         {

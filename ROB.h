@@ -6,38 +6,30 @@
 
 using namespace std;
 
-typedef struct timeLine
+typedef struct timeLine   //Records the start cycle of timeline issue-exe-mem-wb-commit
 {
-    int issue;
-    int exe;
-    int mem;
-    int wBack;
-    int commit;
+    int issue;            //Issue's start cycle
+    int exe;              //Execution's start cycle
+    int mem;              //Mem-stage's start cycle
+    int wBack;            //Write-back's start cycle
+    int commit;           //Commit's start cycle
 }timeLine;
 
 #include "mips.h"
 
 class registor;
 
-class squashData
-{
-    public:
-        squashData();
-        registor *reg_backup;
-        unordered_map<string, int> RAT_backup;
-};
-
 class ROBEntry
 {
 public:
     bool finished;      // Ready to commit or not.
-    bool wrtnBack;
-    string name;
+    bool wrtnBack;      // Write back finished or not
+    string name;        // The full name string as it shows in the input file
     string regName;     // Destination of the instruction (R1, R2, F1, F2)
     memCell value;      // Result of the instruction
     opCode code;        // Opcode of the operation.
-    timeLine output;
-
+    timeLine output;    // Output display
+    int instr_i;        // The Correspond instruction index
 };
 
 class ROB
@@ -56,6 +48,7 @@ class ROB
         void ptr_advance();
         int get_front();
         int get_rear();
+        void squash(int ROB_i);             //Rising edges
         void ROB_automate();
 };
 

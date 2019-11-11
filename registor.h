@@ -11,7 +11,8 @@ class registor
         int *intReg;
         float *flpReg;
     public:
-        registor(int iRegSize, int fRegSize);
+        const int RegSize;
+        registor(int _RegSize);
         ~registor();
         bool get(string name, memCell &ret);
         bool set(string name, memCell val);

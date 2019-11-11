@@ -73,6 +73,14 @@ bool resStation::get_state()
     return busy;
 }
 
+void resStation::squash(int ROB_i)
+{
+    int R_f = CPU_ROB->get_front();
+    int R_r = CPU_ROB->get_rear();
+    if (is_prev_index(ROB_i, dest, R_f, R_r) || is_prev_index(ROB_i, Qj, R_f, R_r) || is_prev_index(ROB_i, Qk, R_f, R_r))
+        busy = false;
+}
+
 void resStation::reserv_automat()
 {
     next_vdd = 0;
@@ -87,11 +95,13 @@ void resStation::reserv_automat()
                 msg_log("WriteBack to ROB = " + to_string(dest), 2);
                 ROBEntry *R = CPU_ROB->get_entry(dest);
                 fCDB.get_val(&R->value);
-                busy = false;
                 R->wrtnBack = true;
                 at_falling_edge(next_vdd);
                 R->finished = true;
                 R->output.wBack = sys_clk.get_prog_cyc();
+                at_rising_edge(next_vdd);
+                busy = false;
+                at_falling_edge(next_vdd);
                 continue;
             }
             else if (!Rj || !Rk)

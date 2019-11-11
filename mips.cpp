@@ -3,17 +3,19 @@
 config *CPU_cfg = nullptr;
 instr_queue *instr_Q = nullptr;
 ROB *CPU_ROB = nullptr;
-nopBublr* nopBub = nullptr;
+BTB CPU_BTB = BTB();
+branchCtrl brcUnit;
+
 pthread_t iss_unit;
+nopBublr* nopBub = nullptr;
 vector<intAdder*> iAdder;
 vector<flpAdder*> fAdder;
 vector<flpMtplr*> fMtplr;
 vector<ldsdUnit*> lsUnit;
 
-
 FU_CDB fCDB = FU_CDB();
 unordered_map <string, int> RAT;
-registor reg = registor(INT_REG_NUM, FP_REG_NUM);
+registor *reg = new registor(REG_NUM);
 clk_tick sys_clk = clk_tick();
 vector<int*> clk_wait_list = {};
 memory main_mem = memory(MEM_LEN);
@@ -38,6 +40,7 @@ int main(int argc, char** argv)
     init_FU_CDB();
     init_main_mem();
     init_issue_unit();
+    init_brcUnit();
     init_output_unit();
     msg_log("Threads count is: "+to_string(clk_wait_list.size()), 0);
     msg_log("instr buffer size is: " + to_string(instr_Q->size), 3);

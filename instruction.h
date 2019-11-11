@@ -36,12 +36,15 @@ class instr_queue
     private:
         int head;
     public:
+        bool squash;
         const size_t size;
         const vector<instr> Q;
         instr_queue(vector<instr> a);
+        void move_ptr(int target);
         bool ptr_advance();
         bool ptr_branch(int offset);
         bool finished();
+        int get_head();
         const instr *getInstr();
 };
 

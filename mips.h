@@ -3,10 +3,10 @@
 
 #include <unordered_map>
 
-#define INT_REG_NUM 32
-#define FP_REG_NUM 32
+#define REG_NUM 32
 #define MEM_LEN 256
 #define Q_LEN 256
+#define BTB_LEN 256
 
 #include "clock.h"
 #include "memory.h"
@@ -17,5 +17,6 @@
 #include "FU.h"
 #include "output.h"
 #include "issue.h"
+#include "branch.h"
 
 #endif

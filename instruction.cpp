@@ -3,12 +3,18 @@
 instr_queue::instr_queue(vector<instr> a):
 Q(a),size(a.size())
 {
+    squash = false;
     head = 0; 
 }
 
 bool instr_queue::finished()
 {
     return head == size;
+}
+
+void instr_queue::move_ptr(int target)
+{
+    head = target;
 }
 
 bool instr_queue::ptr_advance()
@@ -32,6 +38,11 @@ bool instr_queue::ptr_branch(int offset)
     }
     head = dest;
     return true;
+}
+
+int instr_queue::get_head()
+{
+    return head;
 }
 
 const instr* instr_queue::getInstr()

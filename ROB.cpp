@@ -7,7 +7,7 @@ extern clk_tick sys_clk;
 extern ROB* CPU_ROB;
 extern vector<string> CPU_output_Q;
 extern unordered_map<string, int> RAT;
-extern registor reg;
+extern registor *reg;
 
 ROB::ROB(int s):size(s)
 {
@@ -64,6 +64,11 @@ int ROB::add_entry(string n, string d, opCode c)
     return index;
 }
 
+void ROB::squash(int ROB_i)
+{
+    rear = (ROB_i+1)%size;
+}
+
 void ROB::ROB_automate()
 {
     next_vdd = 0;
@@ -80,7 +85,7 @@ void ROB::ROB_automate()
                 auto got = RAT.find(rName);
                 if (got != RAT.end() && got->second == front)
                     RAT.erase(got);
-                reg.set(rName, buf[front].value);
+                reg->set(rName, buf[front].value);
             }
             instr_timeline_output(&buf[front]);
             at_falling_edge(next_vdd);

@@ -35,6 +35,7 @@ class resStation
         bool fill_rs(int _dest, const instr* _instr, int _Qj, int _Qk, memCell _Vj, memCell _Vk);
         memCell get_res();
         bool get_state();
+        void squash(int ROB_i);
         void reserv_automat();
 };
 

@@ -3,7 +3,7 @@
 extern config *CPU_cfg;
 extern clk_tick sys_clk;
 extern instr_queue *instr_Q;
-extern registor reg;
+extern registor *reg;
 extern memory main_mem;
 
 opCode get_opcode(string opName)
@@ -107,7 +107,7 @@ bool read_config_instrs(string path)
 #pragma endregion
 #pragma region read_ini_reg_values
     string tmp;
-    reg.clear();
+    reg->clear();
     do {getline(file, line);}while(line.empty()||line.size()<4);
     line.erase(remove(line.begin(),line.end(),' '),line.end());
     line.erase(remove(line.begin(),line.end(),'\t'),line.end());
@@ -126,12 +126,12 @@ bool read_config_instrs(string path)
                 return -1;
             }
             val.i = stoi(tmp.substr(e + 1, tmp.size() - e - 1));
-            reg.set(tmp.substr(i, e), val);
+            reg->set(tmp.substr(i, e), val);
         }
         else if (f != string::npos)
         {
             val.f = stof(tmp.substr(e + 1, tmp.size() - e - 1));
-            reg.set(tmp.substr(f, e), val);
+            reg->set(tmp.substr(f, e), val);
         }
         else
         {

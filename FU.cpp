@@ -1,10 +1,13 @@
 #include "FU.h"
 
 extern config *CPU_cfg;
+extern instr_queue *instr_Q;
 extern clk_tick sys_clk;
 extern FU_CDB fCDB;
 extern vector<int*> clk_wait_list;
 extern ROB *CPU_ROB;
+extern BTB CPU_BTB;
+extern branchCtrl brcUnit;
 extern memory main_mem;
 extern vector<intAdder*> iAdder;
 extern vector<flpAdder*> fAdder;
@@ -52,6 +55,29 @@ bool FU_CDB::get_val(memCell *v)
     return true;
 }
 
+void FU_CDB::squash(int ROB_i)
+{
+    int R_f = CPU_ROB->get_front();
+    int R_r = CPU_ROB->get_rear();
+    pthread_mutex_lock(&Q_lock);
+    if (front == rear)
+    {
+        pthread_mutex_unlock(&Q_lock);
+        return;
+    }
+    for (int i = rear; ;)
+    {
+        int j = (i-1)%Q_LEN;
+        if (j == front || !is_prev_index(ROB_i, queue[j].source, R_f, R_r))
+            break;
+        rear = j;
+        i = (--i)%Q_LEN;
+    }
+    if (is_prev_index(ROB_i, bus.source, R_f, R_r))
+        bus.source = -2;
+    pthread_mutex_unlock(&Q_lock);
+}
+
 void FU_CDB::CDB_automat()
 {
     next_vdd = 0;
@@ -59,6 +85,7 @@ void FU_CDB::CDB_automat()
     {
         at_rising_edge(next_vdd);
         at_falling_edge(next_vdd);
+        pthread_mutex_lock(&Q_lock);
         if (front != rear)
         {
             bus.source = queue[front].source;
@@ -66,6 +93,7 @@ void FU_CDB::CDB_automat()
             msg_log("About to broadcast, source ROB = " + to_string(bus.source), 3);
             front = (++front)%Q_LEN;
         }
+        pthread_mutex_unlock(&Q_lock);
     }
 }
 
@@ -110,6 +138,27 @@ const FU_QEntry* FU_Q::enQ(opCode c, int d, memCell *r, memCell *op1, memCell *o
     return &queue[index];
 }
 
+void FU_Q::squash(int ROB_i)
+{
+    int R_f = CPU_ROB->get_front();
+    int R_r = CPU_ROB->get_rear();
+    pthread_mutex_lock(&Q_lock);
+    if (front == rear)
+    {
+        pthread_mutex_unlock(&Q_lock);
+        return;
+    }
+    for (int i = rear; ;)
+    {
+        int j = (i-1)%Q_LEN;
+        if (j == front || !is_prev_index(ROB_i, queue[j].dest, R_f, R_r))
+            break;
+        rear = j;
+        i = (--i)%Q_LEN;
+    }
+    pthread_mutex_unlock(&Q_lock);
+}
+
 FU_QEntry *FU_Q::deQ()
 {
     if (front == rear)
@@ -122,6 +171,13 @@ FU_QEntry *FU_Q::deQ()
 functionUnit::functionUnit()
 {
     task.done = true;
+}
+
+void functionUnit::squash(int ROB_i)
+{
+    for (auto _rs : rs)
+        _rs->squash(ROB_i);
+    queue.squash(ROB_i);
 }
 
 intAdder::intAdder()
@@ -150,14 +206,10 @@ void intAdder::FU_automat()
     while (true)
     {
 A:      at_rising_edge(next_vdd);
-        if (task.done)
+        auto newTask = queue.deQ();
+        if (newTask)
         {
-            auto newTask = queue.deQ();
-            if (newTask != nullptr)
-                task = *newTask;
-        }
-        if (!task.done)
-        {
+            task = *newTask;
             ROBEntry *R = CPU_ROB->get_entry(task.dest);
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
@@ -165,27 +217,53 @@ A:      at_rising_edge(next_vdd);
                 msg_log("Calculating INT "+to_string(task.oprnd1->i)+" + "+to_string(task.oprnd2->i) + " dest ROB = " + to_string(task.dest), 3);
                 if (i == CPU_cfg->int_add->exe_time - 1)
                 {
-                    if (task.code == BEQ)
+                    if (task.code == BEQ || task.code == BNE)
                     {
                         *task.busy = false;
-                        if (task.oprnd1->i == task.oprnd2->i)
-                            task.res->i = 1;
+                        bool branch = false;
+                        int result = task.oprnd1->i - task.oprnd2->i;
+                        if (result)
+                            branch = task.code == BNE? true:false;
                         else
-                            task.res->i = 0;
-                        at_falling_edge(next_vdd);
-                        R->finished = true;
-                        task.done = true;
-                        goto A;
-                    }
-                    else if (task.code == BNE)
-                    {
-                        *task.busy = false;
-                        if (task.oprnd1->i == task.oprnd2->i)
-                            task.res->i = 0;
+                            branch = task.code == BEQ? true:false;
+                        if (auto tmp = CPU_BTB.getEntry(R->instr_i))
+                        {
+                            if (branch == tmp->taken)
+                            {
+                                at_falling_edge(next_vdd);
+                                R->finished = true;
+                            }
+                            else
+                            {
+                                tmp->taken = branch;
+                                instr_Q->squash = true;
+                                if (branch)
+                                    instr_Q->move_ptr(tmp->target);
+                                else
+                                    instr_Q->move_ptr(R->instr_i + 1);
+                                at_falling_edge(next_vdd);
+                                msg_log("Begin Squash", 3);
+                                brcUnit.to_squash(task.dest);
+                            }
+                        }
                         else
-                            task.res->i = 1;
-                        at_falling_edge(next_vdd);
-                        R->finished = true;
+                        {
+                            if (branch)
+                            {
+                                CPU_BTB.addEntry(R->instr_i, R->instr_i + 1 + task.offset);
+                                instr_Q->squash = true;
+                                instr_Q->move_ptr(R->instr_i + 1 + task.offset);
+                                at_falling_edge(next_vdd);
+                                msg_log("Begin Squash", 3);
+                                brcUnit.to_squash(task.dest);
+                            }
+                            else
+                            {
+                                at_falling_edge(next_vdd);
+                                R->finished = true;
+                            }
+                            
+                        }
                         task.done = true;
                         goto A;
                     }
@@ -368,14 +446,10 @@ void ldsdUnit::FU_automat()
     while (true)
     {
 A:      at_rising_edge(next_vdd);
-        if (task.done)
+        auto newTask = queue.deQ();
+        if (newTask)
         {
-            auto newTask = queue.deQ();
-            if (newTask != nullptr)
-                task = *newTask;
-        }
-        if (!task.done)
-        {
+            task = *newTask;
             ROBEntry *R = CPU_ROB->get_entry(task.dest);
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
@@ -410,14 +484,19 @@ A:      at_rising_edge(next_vdd);
 
 nopBublr::nopBublr()
 {
-    bubble = nullptr;
+    bubble.ROB_i = -1;
+    bubble.ROB_E = nullptr;
     for (int i = 0; i<3; i++)
-        shifter[i] = nullptr;
+    {
+        shifter[i].ROB_i = -1;
+        shifter[i].ROB_E = nullptr;
+    }
 }
 
 void nopBublr::generate_bubble(int ROB_i)
 {
-    bubble = CPU_ROB->get_entry(ROB_i);
+    bubble.ROB_i = ROB_i;
+    bubble.ROB_E = CPU_ROB->get_entry(ROB_i);
 }
 
 void nopBublr::FU_automat()
@@ -429,18 +508,19 @@ void nopBublr::FU_automat()
         for (int i = 2; i>0; i--)
             shifter[i] = shifter[i-1];
         shifter[0] = bubble;
-        bubble = nullptr;
-        if (shifter[0])
-            shifter[0]->output.exe = sys_clk.get_prog_cyc();
-        if (shifter[1])
+        bubble.ROB_i = -1;
+        bubble.ROB_E = nullptr;
+        if (shifter[0].ROB_E)
+            shifter[0].ROB_E->output.exe = sys_clk.get_prog_cyc();
+        if (shifter[1].ROB_E)
         {
-            shifter[1]->output.wBack = sys_clk.get_prog_cyc();
-            shifter[1]->wrtnBack = true;
+            shifter[1].ROB_E->output.wBack = sys_clk.get_prog_cyc();
+            shifter[1].ROB_E->wrtnBack = true;
         }
-        if (shifter[2])
+        if (shifter[2].ROB_E)
         {
-            shifter[2]->output.commit = sys_clk.get_prog_cyc();
-            shifter[2]->finished = true;
+            shifter[2].ROB_E->output.commit = sys_clk.get_prog_cyc();
+            shifter[2].ROB_E->finished = true;
         }
         at_falling_edge(next_vdd);
     }
