@@ -213,6 +213,7 @@ void *issue_automat(void *arg)
                     }
                     ROBEntry *R = CPU_ROB->get_entry(dest);
                     R->instr_i = instr_Q->get_head();
+                    R->bkupRAT = RAT;
                     avai->set_code(tmp->code);
                     avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
                     if (BTBEntry* predctr = CPU_BTB.getEntry(R->instr_i))

@@ -30,6 +30,7 @@ public:
     opCode code;        // Opcode of the operation.
     timeLine output;    // Output display
     int instr_i;        // The Correspond instruction index
+    unordered_map<string, int> bkupRAT;
 };
 
 class ROB

@@ -58,9 +58,8 @@ void branchCtrl::branch_automat()
         {
             int R_f = CPU_ROB->get_front();
             int R_r = CPU_ROB->get_rear();
-            for (auto m = RAT.begin(); m != RAT.end(); m++)
-                if (is_prev_index(i, m->second, R_f, R_r))
-                    RAT.erase(m);
+            ROBEntry *R = CPU_ROB->get_entry(i);
+            RAT = R->bkupRAT;
             main_mem.squash(i);
             at_falling_edge(next_vdd);
             fCDB.squash(i);
@@ -72,7 +71,6 @@ void branchCtrl::branch_automat()
                 fu->squash(i);
             for (auto fu : lsUnit)
                 fu->squash(i);
-            ROBEntry *R = CPU_ROB->get_entry(i);
             R->finished = true;
             at_rising_edge(next_vdd);
             CPU_ROB->squash(i);

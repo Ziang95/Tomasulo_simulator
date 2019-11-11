@@ -41,7 +41,7 @@ void* output_automat(void *args)
                 cout<<s<<endl;
             cout<<endl;
             memCell m;
-            cout<<"INT_REG:\t\t\t\t\tFLP_REG:"<<endl;
+            cout<<"\tINT_REG:\t\t\t\tFLP_REG:"<<endl;
             for (int i = 0; i<REG_NUM/2; i++)
             {
                 stringstream tmp;
