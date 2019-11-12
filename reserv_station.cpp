@@ -26,16 +26,6 @@ void resStation::set_lsqE(LSQEntry *e)
     lsqE = e;
 }
 
-memCell resStation::get_res()
-{
-    return rest;
-}
-
-void resStation::set_rest(memCell res)
-{
-    rest = res;
-}
-
 bool resStation::fill_rs(int _dest_robi, const instr* _instr, int _Qj, int _Qk, memCell _Vj, memCell _Vk)
 {
     sub = _instr->code == SUB || _instr->code == SUB_D;
