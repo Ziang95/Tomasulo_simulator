@@ -49,7 +49,7 @@ void* output_automat(void *args)
                 cout<<setw(3)<<"R"+to_string(2*i)<<"="<<m.i<<(m.i>9999?"\t":"\t\t");
                 if (2*i + 1 < REG_NUM)
                 {
-                    reg->get("R"+to_string(2*i), m);
+                    reg->get("R"+to_string(2*i+1), m);
                     cout<<setw(3)<<"R"+to_string(i*2+1)<<"="<<m.i<<(m.i>9999?"\t":"\t\t");
                 }
                 reg->get("F"+to_string(2*i), m);

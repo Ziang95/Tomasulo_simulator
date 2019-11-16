@@ -22,7 +22,7 @@ class resStation
         bool Rj;                        //Indicates whether operand j is ready
         bool Rk;                        //Indicates whether operand k is ready
         bool sub;                       //If this is a subtraction instr, Vk will be additive inversed
-    public: 
+    public:
         opCode code;                    //Operation code
         const valType type;             //Operand type, integer or float point. (not very useful, may remove it in future)
         pthread_t handle;               //The handle of thread running reserv_automat()
