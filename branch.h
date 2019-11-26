@@ -29,6 +29,7 @@ class branchCtrl
         int next_vdd;
         branchCtrl();
         void to_squash(int _ROB_i);
+        int squash_ROB_i();
         void branch_automat();
 };
 

@@ -78,7 +78,7 @@ void ROB::ROB_automate()
         if (front != rear && buf[front].finished && buf[front].code != SD)
         {
             string rName = buf[front].regName;
-            msg_log("Commit " + rName + " = " + to_string(rName[0]=='R'? buf[front].value.i : buf[front].value.f) + " ROB = " + to_string(front), 2);
+            msg_log("Commit " + buf[front].name + " = " + to_string(rName[0]=='R'? buf[front].value.i : buf[front].value.f) + " ROB = " + to_string(front), 2);
             buf[front].output.commit = sys_clk.get_prog_cyc();
             if (buf[front].regName != "NO_RET")
             {

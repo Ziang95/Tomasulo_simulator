@@ -12,7 +12,6 @@ struct LSQEntry;
 
 typedef struct FU_QEntry
 {
-    bool done;              //Indicates whether the FU task is done
     opCode code;            //Operation code
     int dest;               //Destination ROB index
     memCell *res;           //Points to the result member in corresponding rs
@@ -67,10 +66,16 @@ class functionUnit
         FU_Q queue;                     //Each function unit has a task queue
         FU_QEntry task;                 //The current task of function unit
         vector<resStation*> rs;         //The reservation stations belonging to this function unit
-        functionUnit();                 //Constructor
         void squash(int ROB_i);         //Squash every reservation station and task queue
         int next_vdd;                   //FU_automat() registered Vdd in clk_wait_list
         pthread_t handle;               //The handle of thread running FU_automat()
+        struct
+        {
+            int R_f;
+            int R_r;
+            int ROB_i;
+            bool flag = false;
+        }squash_info;
         virtual void FU_automat(){};    //FU automation
 };
 
@@ -129,6 +134,7 @@ class nopBublr                  //This is for NOP instruction, since NOP doesnt 
         pthread_t handle;       //Handle of thread running FU_automat()
         int next_vdd;           //FU_automat() registered Vdd in clk_wait_list
         nopBublr();             //Constructor
+        void squash(int ROB_i);
         void generate_bubble(int ROB_i);    //Like the fill() in reservation, starts an NOP instr
         void FU_automat();      //FU automation
 };

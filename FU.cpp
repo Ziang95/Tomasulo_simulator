@@ -132,7 +132,6 @@ const FU_QEntry* FU_Q::enQ(opCode c, int d, memCell *r, memCell *op1, memCell *o
     queue[index].oprnd2 = op2;
     queue[index].offset = offst;
     queue[index].lsqe = _lsqe;
-    queue[index].done = false;
     queue[index].busy = busy;
     pthread_mutex_unlock(&Q_lock);
     return &queue[index];
@@ -161,16 +160,11 @@ void FU_Q::squash(int ROB_i)
 
 FU_QEntry *FU_Q::deQ()
 {
-    if (front == rear)
+    if (front == rear || instr_Q->squash)
         return nullptr;
     FU_QEntry* ret = &queue[front];
     front = (++front)%Q_LEN;
     return ret;
-}
-
-functionUnit::functionUnit()
-{
-    task.done = true;
 }
 
 void functionUnit::squash(int ROB_i)
@@ -178,11 +172,14 @@ void functionUnit::squash(int ROB_i)
     for (auto _rs : rs)
         _rs->squash(ROB_i);
     queue.squash(ROB_i);
+    squash_info.flag = true;
+    squash_info.R_f = CPU_ROB->get_front();
+    squash_info.R_r = CPU_ROB->get_rear();
+    squash_info.ROB_i = brcUnit.squash_ROB_i();
 }
 
 intAdder::intAdder()
 {
-    task.done = true;
     for (int i = 0; i<CPU_cfg->int_add->rs_num; i++)
     {
         auto tmp = new resStation(&queue, INTGR);
@@ -214,6 +211,8 @@ A:      at_rising_edge(next_vdd);
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
             {
+                if (instr_Q->squash && is_prev_index(brcUnit.squash_ROB_i(), task.dest, CPU_ROB->get_front(), CPU_ROB->get_rear()))
+                    break;
                 msg_log("Calculating INT "+to_string(task.oprnd1->i)+" + "+to_string(task.oprnd2->i) + " dest ROB = " + to_string(task.dest), 3);
                 if (i == CPU_cfg->int_add->exe_time - 1)
                 {
@@ -241,9 +240,9 @@ A:      at_rising_edge(next_vdd);
                                     instr_Q->move_ptr(tmp->target);
                                 else
                                     instr_Q->move_ptr(R->instr_i + 1);
-                                at_falling_edge(next_vdd);
                                 msg_log("Begin Squash", 3);
                                 brcUnit.to_squash(task.dest);
+                                at_falling_edge(next_vdd);
                             }
                         }
                         else
@@ -253,18 +252,16 @@ A:      at_rising_edge(next_vdd);
                                 CPU_BTB.addEntry(R->instr_i, R->instr_i + 1 + task.offset);
                                 instr_Q->squash = true;
                                 instr_Q->move_ptr(R->instr_i + 1 + task.offset);
-                                at_falling_edge(next_vdd);
                                 msg_log("Begin Squash", 3);
                                 brcUnit.to_squash(task.dest);
+                                at_falling_edge(next_vdd);
                             }
                             else
                             {
                                 at_falling_edge(next_vdd);
                                 R->finished = true;
                             }
-                            
                         }
-                        task.done = true;
                         goto A;
                     }
                     else
@@ -273,7 +270,6 @@ A:      at_rising_edge(next_vdd);
                         msg_log("CDB enqueued, ROB = " + to_string(task.dest), 3);
                         fCDB.enQ(task.res, task.dest);
                     }
-                    task.done = true;
                     break;
                 }
                 at_falling_edge(next_vdd);
@@ -286,7 +282,6 @@ A:      at_rising_edge(next_vdd);
 
 flpAdder::flpAdder()
 {
-    task.done = true;
     for (int i = 0; i<CPU_cfg->fp_add->rs_num; i++)
     {
         auto tmp = new resStation(&queue, FLTP);
@@ -335,6 +330,13 @@ void flpAdder::FU_automat()
     while (true)
     {
         at_rising_edge(next_vdd);
+        if (squash_info.flag)
+        {
+            for (int i = 0; i<CPU_cfg->fp_add->exe_time - 1; i++)
+                if (pLatency_Q[i].res && is_prev_index(squash_info.ROB_i, pLatency_Q[i].dest, squash_info.R_f, squash_info.R_r))
+                    pLatency_Q[i].res = nullptr;
+            squash_info.flag = false;
+        }
         task.res = nullptr;
         auto newTask = queue.deQ();
         if (newTask != nullptr)
@@ -354,7 +356,6 @@ void flpAdder::FU_automat()
 
 flpMtplr::flpMtplr()
 {
-    task.done = true;
     for (int i = 0; i<CPU_cfg->fp_mul->rs_num; i++)
     {
         auto tmp = new resStation(&queue, FLTP);
@@ -403,6 +404,13 @@ void flpMtplr::FU_automat()
     while (true)
     {
         at_rising_edge(next_vdd);
+        if (squash_info.flag)
+        {
+            for (int i = 0; i<CPU_cfg->fp_mul->exe_time - 1; i++)
+                if (pLatency_Q[i].res && is_prev_index(squash_info.ROB_i, pLatency_Q[i].dest, squash_info.R_f, squash_info.R_r))
+                    pLatency_Q[i].res = nullptr;
+            squash_info.flag = false;
+        }
         task.res = nullptr;
         auto newTask = queue.deQ();
         if (newTask != nullptr)
@@ -422,7 +430,6 @@ void flpMtplr::FU_automat()
 
 ldsdUnit::ldsdUnit()
 {
-    task.done = true;
     for (int i = 0; i<CPU_cfg->ld_str->rs_num; i++)
     {
         auto tmp = new resStation(&queue, INTGR);
@@ -454,27 +461,32 @@ A:      at_rising_edge(next_vdd);
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
             {
+                if (instr_Q->squash && is_prev_index(brcUnit.squash_ROB_i(), task.dest, CPU_ROB->get_front(), CPU_ROB->get_rear()))
+                    break;
                 msg_log("Calculating address "+to_string(task.oprnd1->i)+" + "+to_string(task.offset) + ", ROB = " + to_string(task.dest), 3);
-                at_falling_edge(next_vdd);
                 if (i == CPU_cfg->ld_str->exe_time - 1)
                 {
                     task.lsqe->addr = task.oprnd1->i + task.offset;
-                    if (task.lsqe->addr < 0)
-                        err_log("Calculated address is negative... ROB = " + to_string(task.dest));
                     if (task.code == SD)
                     {
                         *task.busy = false;
                         if (task.lsqe->SD_source == -1)
                         {
+                            at_falling_edge(next_vdd);
                             task.lsqe->ready = true;
                             R->finished = true;
+                            goto A;
                         }
                     }
                     else
+                    {
+                        at_falling_edge(next_vdd);
                         task.lsqe->ready = true;
-                    task.done = true;
-                    goto A;
+                        goto A;
+                    }
+                    break;
                 }
+                at_falling_edge(next_vdd);
                 at_rising_edge(next_vdd);
             }
         }

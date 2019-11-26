@@ -6,7 +6,7 @@
 #define REG_NUM 32
 #define MEM_LEN 256
 #define Q_LEN 256
-#define BTB_LEN 256
+#define BTB_LEN 4
 
 #include "clock.h"
 #include "memory.h"

@@ -21,7 +21,7 @@ BTB::BTB()
 
 void BTB::addEntry(int _instr_i, int _target)
 {
-    int index = _instr_i%256;
+    int index = _instr_i%BTB_LEN;
     buf[index].target = _target;
     buf[index].predicted = true;
     buf[index].taken = true;
@@ -29,7 +29,7 @@ void BTB::addEntry(int _instr_i, int _target)
 
 BTBEntry* BTB::getEntry(int _instr_i)
 {
-    int index = _instr_i%256;
+    int index = _instr_i%BTB_LEN;
     if (buf[index].predicted)
         return &buf[index];
     else
@@ -46,38 +46,43 @@ void branchCtrl::to_squash(int _ROB_i)
     ROB_i = _ROB_i;
 }
 
+int branchCtrl::squash_ROB_i()
+{
+    return ROB_i;
+}
+
 void branchCtrl::branch_automat()
 {
     next_vdd = 0;
     while (true)
     {
         at_rising_edge(next_vdd);
-        int i = ROB_i;
-        ROB_i = -1;
-        if (i > -1)
+        at_falling_edge(next_vdd);
+        if (ROB_i>-1)
         {
-            int R_f = CPU_ROB->get_front();
-            int R_r = CPU_ROB->get_rear();
-            ROBEntry *R = CPU_ROB->get_entry(i);
+            ROBEntry *R = CPU_ROB->get_entry(ROB_i);
             RAT = R->bkupRAT;
-            main_mem.squash(i);
             at_falling_edge(next_vdd);
-            fCDB.squash(i);
+            main_mem.squash(ROB_i);
+            fCDB.squash(ROB_i);
             for (auto fu : iAdder)
-                fu->squash(i);
+                fu->squash(ROB_i);
             for (auto fu : fAdder)
-                fu->squash(i);
+                fu->squash(ROB_i);
             for (auto fu : fMtplr)
-                fu->squash(i);
+                fu->squash(ROB_i);
             for (auto fu : lsUnit)
-                fu->squash(i);
+                fu->squash(ROB_i);
             R->finished = true;
             at_rising_edge(next_vdd);
-            CPU_ROB->squash(i);
-            instr_Q->squash = false;
+            CPU_ROB->squash(ROB_i);
             msg_log("squash finished", 3);
+            at_falling_edge(next_vdd);
+            at_rising_edge(next_vdd);
+            instr_Q->squash = false;
+            at_falling_edge(next_vdd);
         }
-        at_falling_edge(next_vdd);
+        ROB_i = -1;
     }
 }
 

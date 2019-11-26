@@ -43,8 +43,9 @@ class memory
     public:
         int mem_next_vdd;               //The mem_automat() registered vdd in clk_wait_list
         int SDQ_next_vdd;               //The SDQ_automat() registered vdd in clk_wait_list
-        struct LSQEntry Load_Q[Q_LEN];  //Load queue
-        struct LSQEntry Stor_Q[Q_LEN];  //Store queue, can be viewed as the reservation station of memory unit
+        LSQEntry Load_Q[Q_LEN];  //Load queue
+        LSQEntry Load_task;
+        LSQEntry Stor_Q[Q_LEN];  //Store queue, can be viewed as the reservation station of memory unit
         pthread_t mem_handle;           //The handle of thread running mem_automat()
         pthread_t SDQ_handle;           //The handle of thread running SDQ_automat()
         memory(int sz);                 //Constructor

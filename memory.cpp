@@ -5,6 +5,8 @@ extern memory main_mem;
 extern config *CPU_cfg;
 extern FU_CDB fCDB;
 extern vector<int*> clk_wait_list;
+extern instr_queue *instr_Q;
+extern branchCtrl brcUnit;
 extern ROB *CPU_ROB;
 
 memory::memory(int sz)
@@ -41,7 +43,7 @@ bool memory::store(LSQEntry& entry)
     }
     buf[entry.addr] = entry.val;
     at_falling_edge(mem_next_vdd);
-    if (CPU_cfg->ld_str->mem_time == 1)
+    if (CPU_cfg->ld_str->mem_time == 1) //In this case the ROB pointer was not advanced in the loop
         CPU_ROB->ptr_advance();
     Sfront = (++Sfront)%Q_LEN;
     msg_log("Value stored ROB = " + to_string(entry.rob_i), 2);
@@ -52,7 +54,7 @@ bool memory::load(LSQEntry& entry)
 {
     ROBEntry *R = CPU_ROB->get_entry(entry.rob_i);
     int found = -1;
-    bool your_turn = true;
+    bool no_blocking_SD = true;
     memCell ret;
     for (int i = Srear; is_prev_index(Sfront, i, Sfront, Srear);)
     {
@@ -61,7 +63,7 @@ bool memory::load(LSQEntry& entry)
         {
             if (Stor_Q[i].addr == -1)
             {
-                your_turn = false;
+                no_blocking_SD = false;
                 break;
             }
             else
@@ -72,14 +74,14 @@ bool memory::load(LSQEntry& entry)
                         found = i;
                     else
                     {
-                        your_turn = false;
+                        no_blocking_SD = false;
                         break;
                     }
                 }
             }
         }
     }
-    if (your_turn)
+    if (no_blocking_SD)
     {
         R->output.mem = sys_clk.get_prog_cyc();
         if (found >= 0)
@@ -92,6 +94,11 @@ bool memory::load(LSQEntry& entry)
             msg_log("Begin LD, ROB = " + to_string(entry.rob_i), 3);
             for (int i = 0; ; i++)
             {
+                // if (instr_Q->squash && is_prev_index(brcUnit.squash_ROB_i(), entry.rob_i, CPU_ROB->get_front(), CPU_ROB->get_rear()))
+                // {
+                //     at_falling_edge(mem_next_vdd);
+                //     return true;
+                // }
                 if (i == CPU_cfg->ld_str->mem_time - 1)
                 {
                     ret = buf[entry.addr];
