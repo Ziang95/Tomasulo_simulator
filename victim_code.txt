@@ -6,9 +6,13 @@ Load/store unit	    3	1	5	1
 ROB entries = 64 
 CDB buffer entries = 1
 
-R1=0
+R0=0
 Mem[4]=3.0
 
+Beq R0, R0, 2
+NOP
+NOP
+NOP
 Addi R2, R0, -2
 Addi R3, R0, 4
 Addi R2, R2, 2

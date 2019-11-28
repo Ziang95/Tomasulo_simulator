@@ -37,11 +37,10 @@ void get_reg_or_rob(string regName, int &Q, memCell &V)
 
 bool check_squash()
 {
-    msg_log("Checking squash status", 3);
+    msg_log("Checking squash status", 4);
     if (brcUnit.squash_ROB_i() > -1)
     {
         pthread_mutex_lock(&squash_mutex);
-        msg_log("", 3);
         instr_Q->squash = true;
         pthread_cond_broadcast(&squash_cond);
         pthread_mutex_unlock(&squash_mutex);
@@ -265,7 +264,7 @@ void *issue_automat(void *arg)
                     if (BTBEntry* predctr = CPU_BTB.getEntry(R->instr_i))
                     {
                         if (predctr->taken)
-                            instr_Q->move_ptr(predctr->target);
+                            instr_Q->move_ptr(((R->instr_i)/8)*8 + predctr->target);
                         else
                             instr_Q->ptr_advance();
                     }
