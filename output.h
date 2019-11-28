@@ -3,6 +3,15 @@
 
 #include <iomanip>
 #include <sstream>
+#include <string>
+
+using namespace std;
+
+typedef struct output_QEntry
+{
+    int iss_cyc;
+    string name;
+}output_QEnntry;
 
 class ROBEntry;
 

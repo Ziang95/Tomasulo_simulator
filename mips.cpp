@@ -20,7 +20,7 @@ clk_tick sys_clk = clk_tick();
 vector<int*> clk_wait_list = {};
 memory main_mem = memory(MEM_LEN);
 
-vector<string> CPU_output_Q = {};
+vector<output_QEntry> CPU_output_Q = {};
 
 int debug_level = 0;
 

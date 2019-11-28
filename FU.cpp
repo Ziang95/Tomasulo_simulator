@@ -160,7 +160,7 @@ void FU_Q::squash(int ROB_i)
 
 FU_QEntry *FU_Q::deQ()
 {
-    if (front == rear || instr_Q->squash)
+    if (front == rear)
         return nullptr;
     FU_QEntry* ret = &queue[front];
     front = (++front)%Q_LEN;
@@ -172,10 +172,10 @@ void functionUnit::squash(int ROB_i)
     for (auto _rs : rs)
         _rs->squash(ROB_i);
     queue.squash(ROB_i);
-    squash_info.flag = true;
-    squash_info.R_f = CPU_ROB->get_front();
-    squash_info.R_r = CPU_ROB->get_rear();
-    squash_info.ROB_i = brcUnit.squash_ROB_i();
+    squash_p.R_f = CPU_ROB->get_front();
+    squash_p.R_r = CPU_ROB->get_rear();
+    squash_p.ROB_i = brcUnit.squash_ROB_i();
+    squash_p.flag = true;
 }
 
 intAdder::intAdder()
@@ -203,6 +203,12 @@ void intAdder::FU_automat()
     while (true)
     {
 A:      at_rising_edge(next_vdd);
+        if (squash_p.flag)
+        {
+            squash_p.flag = false;
+            at_falling_edge(next_vdd);
+            continue;
+        }
         auto newTask = queue.deQ();
         if (newTask)
         {
@@ -211,8 +217,12 @@ A:      at_rising_edge(next_vdd);
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
             {
-                if (instr_Q->squash && is_prev_index(brcUnit.squash_ROB_i(), task.dest, CPU_ROB->get_front(), CPU_ROB->get_rear()))
-                    break;
+                if (squash_p.flag)
+                {
+                    squash_p.flag = false;
+                    if (is_prev_index(squash_p.ROB_i, task.dest, squash_p.R_f, squash_p.R_r))
+                        break;
+                }
                 msg_log("Calculating INT "+to_string(task.oprnd1->i)+" + "+to_string(task.oprnd2->i) + " dest ROB = " + to_string(task.dest), 3);
                 if (i == CPU_cfg->int_add->exe_time - 1)
                 {
@@ -235,11 +245,10 @@ A:      at_rising_edge(next_vdd);
                             else
                             {
                                 tmp->taken = branch;
-                                instr_Q->squash = true;
                                 if (branch)
-                                    instr_Q->move_ptr(tmp->target);
+                                    brcUnit.to_target(tmp->target);
                                 else
-                                    instr_Q->move_ptr(R->instr_i + 1);
+                                    brcUnit.to_target(R->instr_i + 1);
                                 msg_log("Begin Squash", 3);
                                 brcUnit.to_squash(task.dest);
                                 at_falling_edge(next_vdd);
@@ -249,9 +258,8 @@ A:      at_rising_edge(next_vdd);
                         {
                             if (branch)
                             {
-                                CPU_BTB.addEntry(R->instr_i, R->instr_i + 1 + task.offset);
-                                instr_Q->squash = true;
-                                instr_Q->move_ptr(R->instr_i + 1 + task.offset);
+                                CPU_BTB.addEntry(R->instr_i, (R->instr_i)/8 + (R->instr_i + 1 + task.offset)%8);
+                                brcUnit.to_target(R->instr_i + 1 + task.offset);
                                 msg_log("Begin Squash", 3);
                                 brcUnit.to_squash(task.dest);
                                 at_falling_edge(next_vdd);
@@ -330,12 +338,12 @@ void flpAdder::FU_automat()
     while (true)
     {
         at_rising_edge(next_vdd);
-        if (squash_info.flag)
+        if (squash_p.flag)
         {
             for (int i = 0; i<CPU_cfg->fp_add->exe_time - 1; i++)
-                if (pLatency_Q[i].res && is_prev_index(squash_info.ROB_i, pLatency_Q[i].dest, squash_info.R_f, squash_info.R_r))
+                if (pLatency_Q[i].res && is_prev_index(squash_p.ROB_i, pLatency_Q[i].dest, squash_p.R_f, squash_p.R_r))
                     pLatency_Q[i].res = nullptr;
-            squash_info.flag = false;
+            squash_p.flag = false;
         }
         task.res = nullptr;
         auto newTask = queue.deQ();
@@ -404,12 +412,12 @@ void flpMtplr::FU_automat()
     while (true)
     {
         at_rising_edge(next_vdd);
-        if (squash_info.flag)
+        if (squash_p.flag)
         {
             for (int i = 0; i<CPU_cfg->fp_mul->exe_time - 1; i++)
-                if (pLatency_Q[i].res && is_prev_index(squash_info.ROB_i, pLatency_Q[i].dest, squash_info.R_f, squash_info.R_r))
+                if (pLatency_Q[i].res && is_prev_index(squash_p.ROB_i, pLatency_Q[i].dest, squash_p.R_f, squash_p.R_r))
                     pLatency_Q[i].res = nullptr;
-            squash_info.flag = false;
+            squash_p.flag = false;
         }
         task.res = nullptr;
         auto newTask = queue.deQ();
@@ -453,6 +461,12 @@ void ldsdUnit::FU_automat()
     while (true)
     {
 A:      at_rising_edge(next_vdd);
+        if (squash_p.flag)
+        {
+            squash_p.flag = false;
+            at_falling_edge(next_vdd);
+            continue;
+        }
         auto newTask = queue.deQ();
         if (newTask)
         {
@@ -461,8 +475,12 @@ A:      at_rising_edge(next_vdd);
             R->output.exe = sys_clk.get_prog_cyc();
             for (int i = 0; ;i++)
             {
-                if (instr_Q->squash && is_prev_index(brcUnit.squash_ROB_i(), task.dest, CPU_ROB->get_front(), CPU_ROB->get_rear()))
-                    break;
+                if (squash_p.flag)
+                {
+                    squash_p.flag = false;
+                    if (is_prev_index(squash_p.ROB_i, task.dest, squash_p.R_f, squash_p.R_r))
+                        break;
+                }
                 msg_log("Calculating address "+to_string(task.oprnd1->i)+" + "+to_string(task.offset) + ", ROB = " + to_string(task.dest), 3);
                 if (i == CPU_cfg->ld_str->exe_time - 1)
                 {
@@ -509,6 +527,13 @@ void nopBublr::generate_bubble(int ROB_i)
 {
     bubble.ROB_i = ROB_i;
     bubble.ROB_E = CPU_ROB->get_entry(ROB_i);
+}
+
+void nopBublr::squash(int ROB_i)
+{
+    for (auto &s : shifter)
+        if (is_prev_index(ROB_i, s.ROB_i, CPU_ROB->get_front(), CPU_ROB->get_rear()))
+            s.ROB_E = nullptr;
 }
 
 void nopBublr::FU_automat()

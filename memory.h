@@ -28,6 +28,7 @@ typedef struct LSQEntry
 }LSQEntry;
 
 #include "mips.h"
+#include "branch.h"
 
 class memory
 {
@@ -36,16 +37,16 @@ class memory
         int size;                       //Size of [buf]
         int Lfront, Lrear;              //Control pointers of circular queue [Load_Q]
         int Sfront, Srear;              //Control pointers of circular queue [Stor_Q]
-        bool store(LSQEntry& entry);    //Store the value to the address saved in Load_Q entry
-        bool load(LSQEntry& entry);     //Load the value from address saved in Stor_Q entry
+        bool store(LSQEntry entry);     //Store the value to the address saved in Load_Q entry
+        bool load(LSQEntry entry);      //Load the value from address saved in Stor_Q entry
+        squash_param squash_p;          //This structure stores the info of suqash when it happens
         mutex_t LDQ_lock;               //Prevent race condition in Load_Q modification
         mutex_t SDQ_lock;               //Prevent race condition in Stor_Q modification
     public:
         int mem_next_vdd;               //The mem_automat() registered vdd in clk_wait_list
         int SDQ_next_vdd;               //The SDQ_automat() registered vdd in clk_wait_list
-        LSQEntry Load_Q[Q_LEN];  //Load queue
-        LSQEntry Load_task;
-        LSQEntry Stor_Q[Q_LEN];  //Store queue, can be viewed as the reservation station of memory unit
+        LSQEntry Load_Q[Q_LEN];         //Load queue
+        LSQEntry Stor_Q[Q_LEN];         //Store queue, can be viewed as the reservation station of memory unit
         pthread_t mem_handle;           //The handle of thread running mem_automat()
         pthread_t SDQ_handle;           //The handle of thread running SDQ_automat()
         memory(int sz);                 //Constructor

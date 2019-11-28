@@ -12,6 +12,10 @@ extern vector<intAdder*> iAdder;
 extern vector<flpAdder*> fAdder;
 extern vector<flpMtplr*> fMtplr;
 extern vector<ldsdUnit*> lsUnit;
+extern nopBublr* nopBub;
+
+extern cond_t squash_cond;
+extern mutex_t squash_mutex;
 
 BTB::BTB()
 {
@@ -46,6 +50,11 @@ void branchCtrl::to_squash(int _ROB_i)
     ROB_i = _ROB_i;
 }
 
+void branchCtrl::to_target(int _target)
+{
+    target = _target;
+}
+
 int branchCtrl::squash_ROB_i()
 {
     return ROB_i;
@@ -60,11 +69,13 @@ void branchCtrl::branch_automat()
         at_falling_edge(next_vdd);
         if (ROB_i>-1)
         {
+            pthread_mutex_lock(&squash_mutex);
+            while (!instr_Q->squash)
+                pthread_cond_wait(&squash_cond, &squash_mutex);
+            pthread_mutex_unlock(&squash_mutex);
             ROBEntry *R = CPU_ROB->get_entry(ROB_i);
             RAT = R->bkupRAT;
             at_falling_edge(next_vdd);
-            main_mem.squash(ROB_i);
-            fCDB.squash(ROB_i);
             for (auto fu : iAdder)
                 fu->squash(ROB_i);
             for (auto fu : fAdder)
@@ -73,16 +84,20 @@ void branchCtrl::branch_automat()
                 fu->squash(ROB_i);
             for (auto fu : lsUnit)
                 fu->squash(ROB_i);
+            nopBub->squash(ROB_i);
+            main_mem.squash(ROB_i);
+            fCDB.squash(ROB_i);
             R->finished = true;
-            at_rising_edge(next_vdd);
             CPU_ROB->squash(ROB_i);
+            at_rising_edge(next_vdd);
+            instr_Q->move_ptr(target);
             msg_log("squash finished", 3);
             at_falling_edge(next_vdd);
             at_rising_edge(next_vdd);
             instr_Q->squash = false;
+            ROB_i = -1;
             at_falling_edge(next_vdd);
         }
-        ROB_i = -1;
     }
 }
 

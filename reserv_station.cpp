@@ -86,9 +86,9 @@ void resStation::reserv_automat()
                 ROBEntry *R = CPU_ROB->get_entry(dest);
                 fCDB.get_val(&R->value);
                 R->wrtnBack = true;
+                R->output.wBack = sys_clk.get_prog_cyc();
                 at_falling_edge(next_vdd);
                 R->finished = true;
-                R->output.wBack = sys_clk.get_prog_cyc();
                 at_rising_edge(next_vdd);
                 busy = false;
                 at_falling_edge(next_vdd);

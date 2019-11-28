@@ -59,6 +59,7 @@ class FU_Q
 class resStation;
 
 #include "reserv_station.h"
+#include "branch.h"
 
 class functionUnit
 {
@@ -69,13 +70,7 @@ class functionUnit
         void squash(int ROB_i);         //Squash every reservation station and task queue
         int next_vdd;                   //FU_automat() registered Vdd in clk_wait_list
         pthread_t handle;               //The handle of thread running FU_automat()
-        struct
-        {
-            int R_f;
-            int R_r;
-            int ROB_i;
-            bool flag = false;
-        }squash_info;
+        squash_param squash_p;          //This structure stores the info of suqash when it happens
         virtual void FU_automat(){};    //FU automation
 };
 
@@ -125,7 +120,7 @@ typedef struct bubbEntry
     ROBEntry* ROB_E;
 }bubbEntry;
 
-class nopBublr                  //This is for NOP instruction, since NOP doesnt actually operates but occupies 1 cycle in each stage
+class nopBublr
 {
     private:
         bubbEntry bubble;       //The new NOP if specified
@@ -134,7 +129,7 @@ class nopBublr                  //This is for NOP instruction, since NOP doesnt 
         pthread_t handle;       //Handle of thread running FU_automat()
         int next_vdd;           //FU_automat() registered Vdd in clk_wait_list
         nopBublr();             //Constructor
-        void squash(int ROB_i);
+        void squash(int ROB_i); //Falling edges
         void generate_bubble(int ROB_i);    //Like the fill() in reservation, starts an NOP instr
         void FU_automat();      //FU automation
 };

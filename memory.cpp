@@ -25,7 +25,7 @@ memory::~memory()
     delete []buf;
 }
 
-bool memory::store(LSQEntry& entry)
+bool memory::store(LSQEntry entry)
 {
     ROBEntry *R = CPU_ROB->get_entry(entry.rob_i);
     R->output.commit = R->output.mem = sys_clk.get_prog_cyc();
@@ -50,7 +50,7 @@ bool memory::store(LSQEntry& entry)
     return true;
 }
 
-bool memory::load(LSQEntry& entry)
+bool memory::load(LSQEntry entry)
 {
     ROBEntry *R = CPU_ROB->get_entry(entry.rob_i);
     int found = -1;
@@ -94,11 +94,15 @@ bool memory::load(LSQEntry& entry)
             msg_log("Begin LD, ROB = " + to_string(entry.rob_i), 3);
             for (int i = 0; ; i++)
             {
-                // if (instr_Q->squash && is_prev_index(brcUnit.squash_ROB_i(), entry.rob_i, CPU_ROB->get_front(), CPU_ROB->get_rear()))
-                // {
-                //     at_falling_edge(mem_next_vdd);
-                //     return true;
-                // }
+                if (squash_p.flag)
+                {
+                    squash_p.flag = false;
+                    if (is_prev_index(brcUnit.squash_ROB_i(), entry.rob_i, squash_p.R_f, squash_p.R_r))
+                    {
+                        at_falling_edge(mem_next_vdd);
+                        return true;
+                    }
+                }
                 if (i == CPU_cfg->ld_str->mem_time - 1)
                 {
                     ret = buf[entry.addr];
@@ -215,6 +219,10 @@ void memory::squash(int ROB_i)
     }
     pthread_mutex_unlock(&SDQ_lock);
     msg_log("After squash, Store front = " + to_string(Sfront) + " rear = " + to_string(Srear), 3);
+    squash_p.R_f = CPU_ROB->get_front();
+    squash_p.R_r = CPU_ROB->get_rear();
+    squash_p.ROB_i = brcUnit.squash_ROB_i();
+    squash_p.flag = true;
 }
 
 void memory::SD_Q_automat()
@@ -257,12 +265,20 @@ void memory::mem_automat()
         at_rising_edge(mem_next_vdd);
         if (Sfront == Srear && Lfront == Lrear && sys_clk.is_instr_ended())
             sys_clk.end_mem();
-        if (Sfront != Srear && Stor_Q[Sfront].ready && CPU_ROB->get_front() == Stor_Q[Sfront].rob_i)
-            store(Stor_Q[Sfront]);
-        else if(Lfront != Lrear && Load_Q[Lfront].ready)
-            load(Load_Q[Lfront]);
-        else
+        if (squash_p.flag)
+        {
+            squash_p.flag = false;
             at_falling_edge(mem_next_vdd);
+        }
+        else
+        {
+            if (Sfront != Srear && Stor_Q[Sfront].ready && CPU_ROB->get_front() == Stor_Q[Sfront].rob_i)
+                store(Stor_Q[Sfront]);
+            else if(Lfront != Lrear && Load_Q[Lfront].ready)
+                load(Load_Q[Lfront]);
+            else
+                at_falling_edge(mem_next_vdd);
+        }
     }
 }
 

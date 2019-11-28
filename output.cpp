@@ -3,7 +3,7 @@
 using namespace std;
 
 extern vector<int*> clk_wait_list;
-extern vector<string> CPU_output_Q;
+extern vector<output_QEntry> CPU_output_Q;
 extern clk_tick sys_clk;
 extern registor *reg;
 extern memory main_mem;
@@ -15,17 +15,20 @@ class ROBEntry;
 
 void instr_timeline_output(ROBEntry *R)
 {
-    string t = R->name;
-    if (t.size()/8 < 1)
-        t += "\t\t";
-    else if (t.size()/8 < 2)
-        t += "\t";
-    t += "\t" + to_string(R->output.issue);
-    t += "\t" + to_string(R->output.exe);
-    t += "\t" + (R->output.mem > 0? to_string(R->output.mem):" ");
-    t += "\t" + (R->output.wBack > 0? to_string(R->output.wBack):" ");
-    t += "\t" + to_string(R->output.commit);
+    output_QEntry t;
+    t.iss_cyc = R->output.issue;
+    t.name = R->name;
+    if (t.name.size()/8 < 1)
+        t.name += "\t\t";
+    else if (t.name.size()/8 < 2)
+        t.name += "\t";
+    t.name += "\t" + to_string(R->output.issue);
+    t.name += "\t" + (R->output.exe > 0? to_string(R->output.exe):" ");
+    t.name += "\t" + (R->output.mem > 0? to_string(R->output.mem):" ");
+    t.name += "\t" + (R->output.wBack > 0? to_string(R->output.wBack):" ");
+    t.name += "\t" + (R->output.commit > 0? to_string(R->output.commit):" ");
     CPU_output_Q.push_back(t);
+    sort(CPU_output_Q.begin(), CPU_output_Q.end(), [](output_QEntry a, output_QEntry b){return a.iss_cyc < b.iss_cyc;});
 }
 
 void* output_automat(void *args)
@@ -38,7 +41,7 @@ void* output_automat(void *args)
         if (sys_clk.is_instr_ended() && sys_clk.is_mem_ended())
         {
             for (auto s : CPU_output_Q)
-                cout<<s<<endl;
+                cout<<s.name<<endl;
             cout<<endl;
             memCell m;
             cout<<"\tINT_REG:\t\t\t\tFLP_REG:"<<endl;
@@ -76,8 +79,10 @@ void* output_automat(void *args)
 void init_output_unit()
 {
     next_vdd = 0;
-    CPU_output_Q.push_back("\n");
-    CPU_output_Q.push_back("Instructions:\t\tISS\tEXE\tMEM\tWB\tCOMMMIT");
+    output_QEntry tmp;
+    tmp.iss_cyc = 0;
+    tmp.name = "\nInstructions:\t\tISS\tEXE\tMEM\tWB\tCOMMMIT";
+    CPU_output_Q.push_back(tmp);
     while(pthread_create(&handle, NULL, &output_automat, NULL));
     clk_wait_list.push_back(&next_vdd);
 }

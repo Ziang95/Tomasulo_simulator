@@ -53,20 +53,25 @@ int ROB::add_entry(string n, string d, opCode c)
         throw -1;
     int index = rear;
     rear = (rear + 1)%size;
-    buf[index].code = c;
-    buf[index].name = n;
-    buf[index].regName = d;
-    buf[index].finished = false;
-    buf[index].wrtnBack = false;
-    buf[index].output.issue = sys_clk.get_prog_cyc();
-    buf[index].output.mem = -1;
-    buf[index].output.wBack = -1;
+    ROBEntry *tmp = buf + index;
+    (*tmp).code = c;
+    (*tmp).name = n;
+    (*tmp).regName = d;
+    (*tmp).finished = false;
+    (*tmp).wrtnBack = false;
+    (*tmp).output.issue = sys_clk.get_prog_cyc();
+    (*tmp).output.exe = -1;
+    (*tmp).output.mem = -1;
+    (*tmp).output.wBack = -1;
+    (*tmp).output.commit = -1;
     return index;
 }
 
 void ROB::squash(int ROB_i)
 {
-    rear = (ROB_i+1)%size;
+    for (int i = (ROB_i + 1)%size; i != rear; i = (i+1)%size)
+        instr_timeline_output(&buf[i]);
+    rear = (ROB_i + 1)%size;
 }
 
 void ROB::ROB_automate()

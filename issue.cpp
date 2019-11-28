@@ -7,16 +7,17 @@ extern registor *reg;
 extern unordered_map <string, int> RAT;
 extern instr_queue *instr_Q;
 extern BTB CPU_BTB;
-
 extern vector<intAdder*> iAdder;
 extern vector<flpAdder*> fAdder;
 extern vector<flpMtplr*> fMtplr;
 extern vector<ldsdUnit*> lsUnit;
 extern nopBublr* nopBub;
-
+extern branchCtrl brcUnit;
 extern vector<int*> clk_wait_list;
 
 static int next_vdd;
+cond_t squash_cond = PTHREAD_COND_INITIALIZER;
+mutex_t squash_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void get_reg_or_rob(string regName, int &Q, memCell &V)
 {
@@ -34,6 +35,21 @@ void get_reg_or_rob(string regName, int &Q, memCell &V)
         reg->get(regName, V);
 }
 
+bool check_squash()
+{
+    if (brcUnit.squash_ROB_i() > -1)
+    {
+        pthread_mutex_lock(&squash_mutex);
+        instr_Q->squash = true;
+        pthread_cond_broadcast(&squash_cond);
+        pthread_mutex_unlock(&squash_mutex);
+        at_rising_edge(next_vdd);
+        at_falling_edge(next_vdd);
+        return true;
+    }
+    return false;
+}
+
 void *issue_automat(void *arg)
 {
     next_vdd = 0;
@@ -48,7 +64,7 @@ void *issue_automat(void *arg)
         if (!instr_Q->finished())
             tmp = instr_Q->getInstr();
         at_falling_edge(next_vdd);
-        if (tmp && !instr_Q->squash)
+        if (tmp)
         {
             msg_log("Issuing code: " + tmp->name, 2);
             resStation *avai = nullptr;
@@ -77,6 +93,8 @@ void *issue_automat(void *arg)
                         err_log("ROB is full");
                         break;
                     }
+                    if (check_squash())
+                        break;
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
                     avai->set_code(tmp->code);
@@ -107,6 +125,8 @@ void *issue_automat(void *arg)
                         err_log("ROB is full");
                         break;
                     }
+                    if (check_squash())
+                        break;
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
                     avai->set_code(tmp->code);
@@ -134,6 +154,8 @@ void *issue_automat(void *arg)
                         err_log("ROB is full");
                         break;
                     }
+                    if (check_squash())
+                        break;
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
                     avai->set_code(tmp->code);
@@ -160,6 +182,8 @@ void *issue_automat(void *arg)
                         err_log("ROB is full");
                         break;
                     }
+                    if (check_squash())
+                        break;
                     instr_Q->ptr_advance();
                     RAT[tmp->dest] = dest;
                     avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
@@ -185,6 +209,8 @@ void *issue_automat(void *arg)
                         err_log("ROB is full");
                         break;
                     }
+                    if (check_squash())
+                        break;
                     instr_Q->ptr_advance();
                     avai->set_code(SD);
                     avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
@@ -211,6 +237,8 @@ void *issue_automat(void *arg)
                         err_log("ROB is full");
                         break;
                     }
+                    if (check_squash())
+                        break;
                     ROBEntry *R = CPU_ROB->get_entry(dest);
                     R->instr_i = instr_Q->get_head();
                     R->bkupRAT = RAT;
@@ -240,14 +268,20 @@ void *issue_automat(void *arg)
                     err_log("ROB is full");
                     break;
                 }
+                if (check_squash())
+                    break;
                 instr_Q->ptr_advance();
                 nopBub->generate_bubble(dest);
                 break;
             }
             default:
+                if (check_squash())
+                    break;
                 break;
             }
         }
+        else
+            check_squash();
     }
     return nullptr;
 }
