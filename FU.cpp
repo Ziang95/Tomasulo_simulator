@@ -258,7 +258,7 @@ A:      at_rising_edge(next_vdd);
                         {
                             if (branch)
                             {
-                                CPU_BTB.addEntry(R->instr_i, (R->instr_i)/8 + (R->instr_i + 1 + task.offset)%8);
+                                CPU_BTB.addEntry(R->instr_i, ((R->instr_i)/8)*8 + (R->instr_i + 1 + task.offset)%8);
                                 brcUnit.to_target(R->instr_i + 1 + task.offset);
                                 msg_log("Begin Squash", 3);
                                 brcUnit.to_squash(task.dest);

@@ -4,7 +4,7 @@ extern vector<int*> clk_wait_list;
 extern int debug_level;
 extern clk_tick sys_clk;
 
-static mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
+mutex_t cout_lock = PTHREAD_MUTEX_INITIALIZER;
 static mutex_t boradcast_lock = PTHREAD_MUTEX_INITIALIZER;
 
 clk_tick::clk_tick()

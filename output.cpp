@@ -7,6 +7,7 @@ extern vector<output_QEntry> CPU_output_Q;
 extern clk_tick sys_clk;
 extern registor *reg;
 extern memory main_mem;
+extern mutex_t cout_lock;
 
 static int next_vdd = 0;
 static pthread_t handle;
@@ -40,6 +41,7 @@ void* output_automat(void *args)
         at_falling_edge(next_vdd);
         if (sys_clk.is_instr_ended() && sys_clk.is_mem_ended())
         {
+            pthread_mutex_lock(&cout_lock);
             for (auto s : CPU_output_Q)
                 cout<<s.name<<endl;
             cout<<endl;
@@ -70,7 +72,8 @@ void* output_automat(void *args)
                 if (abs(main_mem.getMem(i).f) > 0.001)
                     cout<<"Mem["<<i<<"]="<<fixed<<setprecision(2)<<main_mem.getMem(i).f<<", ";
             }
-            cout<<endl<<endl;;
+            cout<<endl<<endl;
+            pthread_mutex_unlock(&cout_lock);
             return nullptr;
         }
     }

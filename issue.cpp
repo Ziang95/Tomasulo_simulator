@@ -37,9 +37,11 @@ void get_reg_or_rob(string regName, int &Q, memCell &V)
 
 bool check_squash()
 {
+    msg_log("Checking squash status", 3);
     if (brcUnit.squash_ROB_i() > -1)
     {
         pthread_mutex_lock(&squash_mutex);
+        msg_log("", 3);
         instr_Q->squash = true;
         pthread_cond_broadcast(&squash_cond);
         pthread_mutex_unlock(&squash_mutex);
@@ -61,8 +63,7 @@ void *issue_automat(void *arg)
         at_rising_edge(next_vdd);
         tmp = nullptr;
         Qj = Qk = -1;
-        if (!instr_Q->finished())
-            tmp = instr_Q->getInstr();
+        tmp = instr_Q->getInstr();
         at_falling_edge(next_vdd);
         if (tmp)
         {
@@ -101,8 +102,10 @@ void *issue_automat(void *arg)
                     avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
                 }
                 else
+                {
                     msg_log("No available iAdder rs, wait until next cycle", 2);
-                
+                    check_squash();
+                }
                 break;
             }
             case ADD_D: case SUB_D:
@@ -161,6 +164,11 @@ void *issue_automat(void *arg)
                     avai->set_code(tmp->code);
                     avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
                 }
+                else
+                {
+                    msg_log("No available fAdder rs, wait until next cycle", 2);
+                    check_squash();
+                }
                 break;
             }
             case LD:
@@ -188,6 +196,11 @@ void *issue_automat(void *arg)
                     RAT[tmp->dest] = dest;
                     avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
                 }
+                else
+                {
+                    msg_log("No available LD rs, wait until next cycle", 2);
+                    check_squash();
+                }
                 break;
             }
             case SD:
@@ -214,6 +227,11 @@ void *issue_automat(void *arg)
                     instr_Q->ptr_advance();
                     avai->set_code(SD);
                     avai->fill_rs(dest, tmp, Qj, Qk, Vj, Vk);
+                }
+                else
+                {
+                    msg_log("No available SD rs, wait until next cycle", 2);
+                    check_squash();
                 }
                 break;
             }
@@ -253,6 +271,11 @@ void *issue_automat(void *arg)
                     }
                     else
                         instr_Q->ptr_advance();
+                }
+                else
+                {
+                    msg_log("No available branch rs, wait until next cycle", 2);
+                    check_squash();
                 }
                 break;
             }
