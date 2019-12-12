@@ -1,4 +1,4 @@
-#include "mips.h"
+#include ".\headers\mips.h"
 
 config *CPU_cfg = nullptr;
 instr_queue *instr_Q = nullptr;

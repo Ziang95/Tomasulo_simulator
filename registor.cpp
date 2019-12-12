@@ -1,4 +1,4 @@
-#include "registor.h"
+#include ".\headers\registor.h"
 
 extern clk_tick sys_clk;
 

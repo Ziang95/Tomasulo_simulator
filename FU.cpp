@@ -1,4 +1,4 @@
-#include "FU.h"
+#include ".\headers\FU.h"
 
 extern config *CPU_cfg;
 extern instr_queue *instr_Q;
@@ -239,8 +239,19 @@ A:      at_rising_edge(next_vdd);
                         {
                             if (branch == tmp->taken)
                             {
-                                at_falling_edge(next_vdd);
-                                R->finished = true;
+                                if (tmp->taken && tmp->target != R->instr_i + 1 + task.offset)
+                                {
+                                    tmp->target = R->instr_i + 1 +task.offset;
+                                    brcUnit.to_target(R->instr_i + 1 + task.offset);
+                                    msg_log("Begin Squash", 3);
+                                    brcUnit.to_squash(task.dest);   
+                                    at_falling_edge(next_vdd);
+                                }
+                                else
+                                {
+                                    at_falling_edge(next_vdd);
+                                    R->finished = true;
+                                }
                             }
                             else
                             {
@@ -258,7 +269,7 @@ A:      at_rising_edge(next_vdd);
                         {
                             if (branch)
                             {
-                                CPU_BTB.addEntry(R->instr_i, (R->instr_i + 1 + task.offset)%8);
+                                CPU_BTB.addEntry(R->instr_i, R->instr_i + 1 + task.offset);
                                 brcUnit.to_target(R->instr_i + 1 + task.offset);
                                 msg_log("Begin Squash", 3);
                                 brcUnit.to_squash(task.dest);

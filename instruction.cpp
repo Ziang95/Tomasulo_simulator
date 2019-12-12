@@ -1,4 +1,4 @@
-#include "instruction.h"
+#include ".\headers\instruction.h"
 
 instr_queue::instr_queue(vector<instr> a):
 Q(a),size(a.size())

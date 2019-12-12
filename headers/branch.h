@@ -16,7 +16,7 @@ typedef struct squash_param
     bool flag = false;          //Whether the squash has begun
 }squash_param;
 
-#include ".\headers\mips.h"
+#include "mips.h"
 
 class BTB
 {

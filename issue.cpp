@@ -1,4 +1,4 @@
-#include "issue.h"
+#include ".\headers\issue.h"
 
 extern pthread_t iss_unit;
 extern clk_tick sys_clk;
@@ -264,7 +264,7 @@ void *issue_automat(void *arg)
                     if (BTBEntry* predctr = CPU_BTB.getEntry(R->instr_i))
                     {
                         if (predctr->taken)
-                            instr_Q->move_ptr(((R->instr_i)/8)*8 + predctr->target);
+                            instr_Q->move_ptr(((R->instr_i)/8)*8 + (predctr->target)%8);
                         else
                             instr_Q->ptr_advance();
                     }

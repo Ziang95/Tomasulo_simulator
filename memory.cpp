@@ -1,4 +1,4 @@
-#include "memory.h"
+#include ".\headers\memory.h"
 
 extern clk_tick sys_clk;
 extern memory main_mem;
