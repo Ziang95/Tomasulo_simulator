@@ -95,7 +95,11 @@ bool clk_tick::clk_automat(int freq)
             for (auto a : clk_wait_list)
                 outp += to_string(*a) + ",";
             msg_log("In waiting for vdd = 1, " + outp, 4);
+            #ifdef _WIN32
             Sleep(500/freq);
+            #else
+            usleep(500/freq);
+            #endif
         }
         pthread_mutex_lock(&boradcast_lock);
         vdd = 1;
@@ -110,7 +114,11 @@ bool clk_tick::clk_automat(int freq)
             for (auto a : clk_wait_list)
                 outp += to_string(*a) + ",";
             msg_log("In waiting for vdd = 0, " + outp, 4);
+            #ifdef _WIN32
             Sleep(500/freq);
+            #else
+            usleep(500/freq);
+            #endif
         }
         pthread_mutex_lock(&boradcast_lock);
         vdd = 0;

@@ -2,11 +2,15 @@
 #define CLOCK_H
 
 #include <string>
-#include <windows.h>
 #include <pthread.h>
 #include <string>
 #include <vector>
 #include <iostream>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
 
 typedef pthread_cond_t cond_t;
 typedef pthread_mutex_t mutex_t;
