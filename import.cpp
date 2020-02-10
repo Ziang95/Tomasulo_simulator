@@ -1,4 +1,4 @@
-#include ".\headers\import.h"
+#include "./headers/import.h"
 
 extern config *CPU_cfg;
 extern clk_tick sys_clk;

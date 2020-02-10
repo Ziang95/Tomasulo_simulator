@@ -1,4 +1,4 @@
-#include ".\headers\issue.h"
+#include "./headers/issue.h"
 
 extern pthread_t iss_unit;
 extern clk_tick sys_clk;

@@ -1,4 +1,4 @@
-#include ".\headers\output.h"
+#include "./headers/output.h"
 
 using namespace std;
 

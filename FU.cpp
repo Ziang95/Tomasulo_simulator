@@ -1,4 +1,4 @@
-#include ".\headers\FU.h"
+#include "./headers/FU.h"
 
 extern config *CPU_cfg;
 extern instr_queue *instr_Q;

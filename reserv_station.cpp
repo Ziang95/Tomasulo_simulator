@@ -1,5 +1,5 @@
-#include ".\headers\reserv_station.h"
-#include ".\headers\mips.h"
+#include "./headers/reserv_station.h"
+#include "./headers/mips.h"
 
 extern config *CPU_cfg;
 extern clk_tick sys_clk;

@@ -1,4 +1,4 @@
-#include ".\headers\clock.h"
+#include "./headers/clock.h"
 
 extern vector<int*> clk_wait_list;
 extern int debug_level;

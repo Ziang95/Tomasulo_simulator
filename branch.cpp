@@ -1,5 +1,5 @@
-#include ".\headers\branch.h"
-#include ".\headers\clock.h"
+#include "./headers/branch.h"
+#include "./headers/clock.h"
 
 extern unordered_map <string, int> RAT;
 extern vector<int*> clk_wait_list;

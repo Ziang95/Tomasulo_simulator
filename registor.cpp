@@ -1,12 +1,13 @@
-#include ".\headers\registor.h"
+#include "./headers/registor.h"
 
 extern clk_tick sys_clk;
 
 registor::registor(int _RegSize):RegSize(_RegSize)
 {
     intReg = new int[_RegSize];
-    memset(intReg, 0, _RegSize);
-    intReg[0] = 0;
+    for (int i = 0; i<_RegSize; i++)
+        intReg[i] = 0;
+    // intReg[0] = 0;
     flpReg = new float[_RegSize];
     for (int i = 0; i<RegSize; i++)
         flpReg[i] = 0.;
