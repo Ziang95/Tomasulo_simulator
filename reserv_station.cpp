@@ -12,6 +12,7 @@ resStation::resStation(FU_Q *Q, valType t):type(t)
 {
     prnt_Q = Q;
     busy = false;
+    to_start = false;
     dest = -1;
     Rj = Rk = true;
 }
@@ -39,7 +40,6 @@ bool resStation::fill_rs(int _dest_robi, const instr* _instr, int _Qj, int _Qk, 
     Vk = _Vk;
     Rj = Qj<0? true:false;
     Rk = Qk<0? true:false;
-    to_start = Rj&&Rk? false:true;
     if (code == LD)
         lsqE = main_mem.LD_enQ(dest, -1);
     else if (code == SD)
@@ -49,11 +49,13 @@ bool resStation::fill_rs(int _dest_robi, const instr* _instr, int _Qj, int _Qk, 
         get_reg_or_rob(_instr->dest, SD_source_rob, SD_source);
         lsqE = main_mem.SD_enQ(dest, SD_source_rob, -1, SD_source);
     }
-    if (!to_start)
+    if (Rj&&Rk)
     {
         msg_log("Operands ready, sending to FU, dest ROB = " + to_string(dest), 2);
         prnt_Q->enQ(code, dest, &rest, &Vj, &Vk, lsqE, offset, &busy);
     }
+    else
+        to_start = true;
     msg_log("Res Station filled, ROB = " + to_string(dest), 3);
     return true;
 }
@@ -74,7 +76,6 @@ void resStation::squash(int ROB_i)
 void resStation::reserv_automat()
 {
     next_vdd = 0;
-    bool to_commit;
     while (true)
     {
         at_rising_edge(next_vdd);
